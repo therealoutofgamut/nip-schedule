@@ -1,0 +1,15 @@
+services:
+  nip-schedule:
+    build: .
+    container_name: nip-schedule
+    restart: unless-stopped
+    ports:
+      - "8092:80"
+    # If using Cloudflare tunnel, no ports needed — just add to your tunnel config:
+    # nip.yourdomain.com -> http://nip-schedule:80
+    networks:
+      - proxy  # your existing network for Cloudflare tunnel
+
+networks:
+  proxy:
+    external: true
