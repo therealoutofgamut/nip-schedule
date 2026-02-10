@@ -1,7 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { inject } from '@vercel/analytics';
-
-inject();
+import { Analytics } from '@vercel/analytics/react';
 
 const SCHEDULE_DATA = [
   // Birth
@@ -979,6 +977,7 @@ export default function AustralianNIPSchedule() {
       </footer>
 
       <Modal item={selectedItem} onClose={() => setSelectedItem(null)} />
+      <Analytics />
     </div>
   );
 }
