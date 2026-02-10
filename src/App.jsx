@@ -1,4 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import { inject } from '@vercel/analytics';
+
+inject();
 
 const SCHEDULE_DATA = [
   // Birth
@@ -8,11 +11,13 @@ const SCHEDULE_DATA = [
   { vaccine: "Pneumococcal (20vPCV)", shortName: "PCV20", age: "6 weeks", ageSort: 1, type: "routine", brand: "Prevenar 20", route: "IM", notes: "From Sep 2025, Prevenar 20 replaces Prevenar 13 for all children <18 years." },
   { vaccine: "Rotavirus", shortName: "Rota", age: "6 weeks", ageSort: 1, type: "routine", brand: "Rotarix", route: "Oral", notes: "Dose 1 must be given by 14 weeks of age. Cannot be given after this window." },
   { vaccine: "Meningococcal B", shortName: "MenB", age: "6 weeks", ageSort: 1, type: "indigenous", brand: "Bexsero", route: "IM", notes: "Aboriginal and Torres Strait Islander infants. Prophylactic paracetamol recommended." },
+  { vaccine: "Meningococcal B", shortName: "MenB", age: "6 weeks", ageSort: 1, type: "recommended", brand: "Bexsero", route: "IM", notes: "Recommended for ALL infants <2 years. Not NIP-funded for non-Indigenous children — available via private prescription (~$110–135/dose). State-funded in SA, QLD, NT. Prophylactic paracetamol recommended." },
   // 4 months
   { vaccine: "DTPa-HepB-IPV-Hib", shortName: "6-in-1", age: "4 months", ageSort: 2, type: "routine", brand: "Infanrix hexa / Vaxelis", route: "IM", notes: "Second dose of the hexavalent combination vaccine." },
   { vaccine: "Pneumococcal (20vPCV)", shortName: "PCV20", age: "4 months", ageSort: 2, type: "routine", brand: "Prevenar 20", route: "IM", notes: "Second dose of pneumococcal conjugate vaccine." },
   { vaccine: "Rotavirus", shortName: "Rota", age: "4 months", ageSort: 2, type: "routine", brand: "Rotarix", route: "Oral", notes: "Dose 2 must be given by 24 weeks of age. Series cannot be started or continued after age limits." },
   { vaccine: "Meningococcal B", shortName: "MenB", age: "4 months", ageSort: 2, type: "indigenous", brand: "Bexsero", route: "IM", notes: "Aboriginal and Torres Strait Islander infants. Prophylactic paracetamol recommended." },
+  { vaccine: "Meningococcal B", shortName: "MenB", age: "4 months", ageSort: 2, type: "recommended", brand: "Bexsero", route: "IM", notes: "Recommended for ALL infants <2 years. Not NIP-funded for non-Indigenous children. State-funded in SA, QLD, NT. Prophylactic paracetamol recommended." },
   // 6 months
   { vaccine: "DTPa-HepB-IPV-Hib", shortName: "6-in-1", age: "6 months", ageSort: 3, type: "routine", brand: "Infanrix hexa / Vaxelis", route: "IM", notes: "Third dose of the hexavalent combination vaccine." },
   { vaccine: "Pneumococcal (20vPCV)", shortName: "PCV20", age: "6 months", ageSort: 3, type: "at-risk", brand: "Prevenar 20", route: "IM", notes: "Additional dose for Aboriginal & Torres Strait Islander children and children with specified medical risk conditions." },
@@ -22,10 +27,12 @@ const SCHEDULE_DATA = [
   { vaccine: "MMR", shortName: "MMR", age: "12 months", ageSort: 4, type: "routine", brand: "M-M-R II / Priorix", route: "SC", notes: "Measles, mumps and rubella. First dose." },
   { vaccine: "Pneumococcal (20vPCV)", shortName: "PCV20", age: "12 months", ageSort: 4, type: "routine", brand: "Prevenar 20", route: "IM", notes: "Booster dose (3rd routine dose). From Sep 2025, all Aboriginal & Torres Strait Islander children in all states/territories receive 4-dose schedule." },
   { vaccine: "Meningococcal B", shortName: "MenB", age: "12 months", ageSort: 4, type: "indigenous", brand: "Bexsero", route: "IM", notes: "Aboriginal and Torres Strait Islander children. Catch-up available for ATSI children <2 years." },
+  { vaccine: "Meningococcal B", shortName: "MenB", age: "12 months", ageSort: 4, type: "recommended", brand: "Bexsero", route: "IM", notes: "Booster dose recommended for ALL children. Not NIP-funded for non-Indigenous children. State-funded in SA, QLD, NT." },
   // 18 months
   { vaccine: "Hib", shortName: "Hib", age: "18 months", ageSort: 5, type: "routine", brand: "ActHIB", route: "IM", notes: "Haemophilus influenzae type b booster dose." },
   { vaccine: "DTPa", shortName: "DTPa", age: "18 months", ageSort: 5, type: "routine", brand: "Infanrix / Tripacel", route: "IM", notes: "Diphtheria, tetanus, acellular pertussis booster." },
   { vaccine: "MMRV", shortName: "MMRV", age: "18 months", ageSort: 5, type: "routine", brand: "Priorix-Tetra / ProQuad", route: "SC", notes: "Measles, mumps, rubella and varicella (chickenpox). Second MMR dose + first varicella dose." },
+  { vaccine: "Varicella (2nd dose)", shortName: "VZV2", age: "18 months+", ageSort: 5.5, type: "recommended", brand: "Varilrix", route: "SC", notes: "A 2nd dose of varicella vaccine is recommended for all children 12m to <14y, ≥4 weeks after first dose (MMRV at 18m). Not NIP-funded. Reduces risk of breakthrough varicella. Can be given at any age from 19 months to 13 years." },
   { vaccine: "Hepatitis A", shortName: "HepA", age: "18 months", ageSort: 5, type: "indigenous", brand: "Vaqta Paed / Havrix Junior", route: "IM", notes: "Aboriginal and Torres Strait Islander children in QLD, NT, SA, WA. First dose of 2-dose schedule." },
   // 4 years
   { vaccine: "DTPa-IPV", shortName: "DTPa-IPV", age: "4 years", ageSort: 6, type: "routine", brand: "Infanrix IPV / Quadracel", route: "IM", notes: "Diphtheria, tetanus, pertussis and polio booster before starting school." },
@@ -36,9 +43,13 @@ const SCHEDULE_DATA = [
   { vaccine: "dTpa", shortName: "dTpa", age: "Year 7 (12–13 yrs)", ageSort: 7, type: "routine", brand: "Boostrix", route: "IM", notes: "Reduced antigen diphtheria, tetanus and pertussis booster for adolescents." },
   // School - Year 10
   { vaccine: "Meningococcal ACWY", shortName: "MenACWY", age: "Year 10 (15–16 yrs)", ageSort: 8, type: "routine", brand: "Nimenrix / MenQuadfi", route: "IM", notes: "Adolescent dose. School-based program." },
+  { vaccine: "Meningococcal B", shortName: "MenB", age: "15–19 years", ageSort: 8.5, type: "recommended", brand: "Bexsero", route: "IM", notes: "2 doses (8 weeks apart) recommended for all healthy adolescents 15–19 years. Not NIP-funded. Available via private prescription (~$110–135/dose). Also recommended for 15–24y in close quarters, smokers, military recruits." },
   // Pregnancy
   { vaccine: "Influenza", shortName: "Flu", age: "Pregnancy", ageSort: 9, type: "routine", brand: "Various", route: "IM", notes: "Recommended during each pregnancy, any trimester." },
-  { vaccine: "Pertussis (dTpa)", shortName: "dTpa", age: "Pregnancy", ageSort: 9, type: "routine", brand: "Boostrix", route: "IM", notes: "Recommended each pregnancy, ideally 28–32 weeks but can be given up until delivery. Provides passive antibody protection to newborn." },
+  { vaccine: "Pertussis (dTpa)", shortName: "dTpa", age: "Pregnancy", ageSort: 9, type: "routine", brand: "Boostrix", route: "IM", notes: "Recommended each pregnancy, ideally 20–32 weeks. Provides passive antibody protection to newborn." },
+  { vaccine: "RSV (Abrysvo)", shortName: "RSV", age: "Pregnancy", ageSort: 9, type: "routine", brand: "Abrysvo", route: "IM", notes: "NIP-funded from Feb 2025. Single dose recommended from 28 weeks gestation (up to 36w, or later if missed). Provides passive RSV protection to infant for ~6 months via transplacental antibodies. Only Abrysvo is approved for pregnancy — do NOT use Arexvy." },
+  // Infant RSV — state-funded
+  { vaccine: "Nirsevimab (RSV mAb)", shortName: "Nirsev", age: "Infants (seasonal)", ageSort: 0.5, type: "state", brand: "Beyfortus", route: "IM", notes: "Long-acting monoclonal antibody (not a vaccine). State/territory-funded — eligibility and timing vary by jurisdiction. Given to infants whose mothers did not receive Abrysvo, or <2 weeks after maternal vaccination, or with medical risk factors for severe RSV. Single dose; seasonal programs typically Apr–Sep." },
   // Older adults
   { vaccine: "Influenza", shortName: "Flu", age: "≥65 years", ageSort: 10, type: "routine", brand: "Various (enhanced)", route: "IM", notes: "Annual vaccination. Enhanced or adjuvanted formulations recommended." },
   { vaccine: "Shingles (Herpes Zoster)", shortName: "Zoster", age: "≥65 years", ageSort: 10, type: "routine", brand: "Shingrix", route: "IM", notes: "Non-Indigenous adults. 2 doses, 2–6 months apart. If previously had Zostavax via NIP, wait 5 years." },
@@ -48,9 +59,9 @@ const SCHEDULE_DATA = [
 ];
 
 const AGE_GROUPS = [
-  "Birth", "6 weeks", "4 months", "6 months", "6 months–5 years",
-  "12 months", "18 months", "4 years",
-  "Year 7 (12–13 yrs)", "Year 10 (15–16 yrs)",
+  "Birth", "Infants (seasonal)", "6 weeks", "4 months", "6 months", "6 months–5 years",
+  "12 months", "18 months", "18 months+", "4 years",
+  "Year 7 (12–13 yrs)", "Year 10 (15–16 yrs)", "15–19 years",
   "Pregnancy",
   "≥50 years (ATSI)", "≥65 years", "≥70 years"
 ];
@@ -59,22 +70,113 @@ const TYPES = {
   routine: { label: "NIP Routine", color: "#0D6E3F", bg: "#E8F5EE" },
   indigenous: { label: "Aboriginal & TSI", color: "#9B4D13", bg: "#FEF0E4" },
   "at-risk": { label: "At-Risk / Medical", color: "#1D4ED8", bg: "#E6EFFF" },
+  recommended: { label: "Recommended (not funded)", color: "#7C3AED", bg: "#F3EEFF" },
+  state: { label: "State/Territory funded", color: "#0891B2", bg: "#E0F2FE" },
 };
 
-const TIMELINE_VACCINES = [
-  "HepB", "6-in-1", "PCV20", "Rota", "MenB", "Flu", "MenACWY", "MMR", "Hib", "DTPa", "MMRV", "HepA", "DTPa-IPV", "HPV", "dTpa"
+// Timeline shows individual antigens, mapping through combination vaccines
+const TIMELINE_ANTIGENS = [
+  { label: "Hep B",     key: "HepB" },
+  { label: "DTPa",      key: "DTPa" },
+  { label: "IPV",       key: "IPV" },
+  { label: "Hib",       key: "Hib" },
+  { label: "PCV",       key: "PCV" },
+  { label: "Rotavirus", key: "Rota" },
+  { label: "RSV",       key: "RSV" },
+  { label: "MenB",      key: "MenB" },
+  { label: "Influenza", key: "Flu" },
+  { label: "MenACWY",   key: "MenACWY" },
+  { label: "MMR",       key: "MMR" },
+  { label: "Varicella",  key: "VZV" },
+  { label: "Hep A",     key: "HepA" },
+  { label: "HPV",       key: "HPV" },
+  { label: "dTpa",      key: "dTpa" },
 ];
 
+// Which antigens are in each scheduled vaccine, keyed by shortName
+const COMBO_MAP = {
+  "HepB":     ["HepB"],
+  "6-in-1":   ["HepB", "DTPa", "IPV", "Hib"],   // DTPa-HepB-IPV-Hib (Infanrix hexa)
+  "PCV20":    ["PCV"],
+  "Rota":     ["Rota"],
+  "MenB":     ["MenB"],
+  "Flu":      ["Flu"],
+  "MenACWY":  ["MenACWY"],
+  "MMR":      ["MMR"],
+  "Hib":      ["Hib"],
+  "DTPa":     ["DTPa"],
+  "MMRV":     ["MMR", "VZV"],                     // MMR + Varicella
+  "HepA":     ["HepA"],
+  "DTPa-IPV": ["DTPa", "IPV"],                    // DTPa + Polio booster
+  "HPV":      ["HPV"],
+  "dTpa":     ["dTpa"],
+  "PCV13":    ["PCV"],
+  "PCV":      ["PCV"],
+  "VZV2":     ["VZV"],                                 // 2nd varicella dose
+  "RSV":      ["RSV"],                                 // Abrysvo maternal
+  "Nirsev":   ["RSV"],                                 // Nirsevimab infant mAb
+  "Zoster":   [],                                      // not shown on childhood timeline
+};
+
+// Multivalent vaccine display names for legend
+const MULTIVALENT_LEGEND = [
+  { combo: "Infanrix hexa / Vaxelis", contains: "DTPa + Hep B + IPV + Hib", ages: "6w, 4m, 6m" },
+  { combo: "MMRV (Priorix-Tetra)", contains: "MMR + Varicella", ages: "18m" },
+  { combo: "DTPa-IPV (Infanrix IPV)", contains: "DTPa + IPV", ages: "4y" },
+];
+
+// For expanding combo vaccines into individual component cards
+const COMPONENT_EXPAND = {
+  "DTPa-HepB-IPV-Hib": [
+    { vaccine: "Diphtheria, Tetanus, Pertussis", shortName: "DTPa", notes: "Contained in hexavalent vaccine (Infanrix hexa / Vaxelis)" },
+    { vaccine: "Hepatitis B", shortName: "HepB", notes: "Contained in hexavalent vaccine (Infanrix hexa / Vaxelis)" },
+    { vaccine: "Polio (IPV)", shortName: "IPV", notes: "Inactivated polio. Contained in hexavalent vaccine (Infanrix hexa / Vaxelis)" },
+    { vaccine: "Haemophilus influenzae type b", shortName: "Hib", notes: "Contained in hexavalent vaccine (Infanrix hexa / Vaxelis)" },
+  ],
+  "MMRV": [
+    { vaccine: "Measles, Mumps, Rubella", shortName: "MMR", notes: "Contained in MMRV (Priorix-Tetra / ProQuad). Second MMR dose." },
+    { vaccine: "Varicella (Chickenpox)", shortName: "VZV", notes: "Contained in MMRV (Priorix-Tetra / ProQuad). First varicella dose." },
+  ],
+  "DTPa-IPV": [
+    { vaccine: "Diphtheria, Tetanus, Pertussis", shortName: "DTPa", notes: "Pre-school booster. Contained in DTPa-IPV (Infanrix IPV / Quadracel)" },
+    { vaccine: "Polio (IPV)", shortName: "IPV", notes: "Pre-school booster. Contained in DTPa-IPV (Infanrix IPV / Quadracel)" },
+  ],
+};
+
+function expandScheduleData(data) {
+  const expanded = [];
+  data.forEach(item => {
+    const components = COMPONENT_EXPAND[item.vaccine];
+    if (components) {
+      components.forEach(comp => {
+        expanded.push({
+          ...item,
+          vaccine: comp.vaccine,
+          shortName: comp.shortName,
+          notes: comp.notes,
+          _comboSource: item.vaccine,
+          _comboBrand: item.brand,
+        });
+      });
+    } else {
+      expanded.push(item);
+    }
+  });
+  return expanded;
+}
+
+// Non-linear axis: birth–18m gets ~60% of the visual width
 const TIMELINE_AGES = [
-  { label: "Birth", x: 0 },
-  { label: "6w", x: 6 },
-  { label: "4m", x: 16 },
-  { label: "6m", x: 24 },
-  { label: "12m", x: 48 },
-  { label: "18m", x: 72 },
-  { label: "4y", x: 192 },
-  { label: "Yr7", x: 576 },
-  { label: "Yr10", x: 720 },
+  { label: "Birth", x: 0, pct: 0 },
+  { label: "6w",    x: 6, pct: 9 },
+  { label: "4m",    x: 16, pct: 22 },
+  { label: "6m",    x: 24, pct: 35 },
+  { label: "12m",   x: 48, pct: 48 },
+  { label: "18m",   x: 72, pct: 60 },
+  { label: "4y",    x: 192, pct: 73 },
+  { label: "Yr7",   x: 576, pct: 83 },
+  { label: "Yr10",  x: 720, pct: 92 },
+  { label: "15–19y", x: 750, pct: 100 },
 ];
 
 const VACCINE_DETAILS = {
@@ -101,12 +203,27 @@ const VACCINE_DETAILS = {
   "Meningococcal B": {
     diseases: "Invasive meningococcal disease (serogroup B) — meningitis, septicaemia",
     contraindications: "Anaphylaxis to previous dose or component",
-    schedule: "ATSI: 6w, 4m, 12m. Prophylactic paracetamol recommended with each dose in children <2 years."
+    schedule: "Recommended for ALL infants <2 years: 6w, 4m, 12m. Also recommended for adolescents 15–19y (2 doses, 8w apart). NIP-funded for ATSI infants and medical at-risk. State-funded in SA, QLD, NT. Prophylactic paracetamol recommended in children <2 years."
   },
   "Meningococcal ACWY": {
     diseases: "Invasive meningococcal disease (serogroups A, C, W, Y)",
     contraindications: "Anaphylaxis to previous dose or component",
     schedule: "12 months (routine) + Year 10 school program. Additional doses for at-risk groups."
+  },
+  "Varicella (2nd dose)": {
+    diseases: "Varicella (chickenpox) — prevents breakthrough varicella infection after single-dose vaccination",
+    contraindications: "Pregnancy. Severe immunocompromise. Anaphylaxis to neomycin or gelatin.",
+    schedule: "Recommended for all children 12m to <14y, ≥4 weeks after first varicella dose (MMRV at 18m). Not NIP-funded. Monovalent varicella vaccine (Varilrix) used. 2 doses give >90% protection vs ~70% with single dose."
+  },
+  "RSV (Abrysvo)": {
+    diseases: "Respiratory syncytial virus (RSV) — bronchiolitis, pneumonia in infants. Leading cause of hospitalisation in infants <6 months.",
+    contraindications: "Anaphylaxis to previous dose or component. Do NOT use Arexvy (only approved for ≥50 years, contraindicated in pregnancy).",
+    schedule: "NIP-funded from Feb 2025. Single dose from 28 weeks gestation (ideally by 36w). Infant protection via transplacental antibodies. ~57% reduction in hospitalisation for severe RSV in infants <6 months. Only recommended once — advice on subsequent pregnancies pending."
+  },
+  "Nirsevimab (RSV mAb)": {
+    diseases: "RSV prevention in infants — long-acting monoclonal antibody (not a vaccine)",
+    contraindications: "Hypersensitivity to nirsevimab or excipients. Not a vaccine — provides passive immunity only.",
+    schedule: "State/territory-funded (not NIP). Single IM dose. For infants whose mothers did not receive Abrysvo, or vaccinated <2w before birth, or with medical risk factors. Seasonal programs vary by jurisdiction (typically Apr–Sep). Also for high-risk children <24m entering 2nd RSV season."
   },
   MMR: {
     diseases: "Measles, mumps, rubella",
@@ -196,6 +313,15 @@ function VaccineCard({ item, onClick }) {
       <div style={{ fontSize: "12px", color: "#666", marginTop: "4px" }}>
         {item.brand} · {item.route}
       </div>
+      {item._comboSource && (
+        <div style={{
+          fontSize: "11px", color: "#8B6914", marginTop: "6px",
+          background: "#FFF8E7", padding: "3px 8px", borderRadius: "4px",
+          display: "inline-block"
+        }}>
+          ðŸ§¬ Given as <strong>{item._comboSource}</strong> ({item._comboBrand})
+        </div>
+      )}
     </button>
   );
 }
@@ -255,47 +381,229 @@ function Modal({ item, onClose }) {
   );
 }
 
-function Timeline() {
+function Timeline({ viewMode = "combo", onSelect }) {
   const scrollRef = useRef(null);
-  const vaccines = TIMELINE_VACCINES;
-  const W = 900;
-  const H = vaccines.length * 32 + 50;
-  const left = 90;
-  const right = W - 30;
-  const maxWeeks = 780;
-  const xScale = (w) => left + (w / maxWeeks) * (right - left);
+  
+  // In combo mode: show vaccine products as administered
+  // In components mode: show individual antigens
+  const COMBO_VACCINES = [
+    { label: "Hep B",     key: "HepB" },
+    { label: "Nirsevimab", key: "Nirsev" },
+    { label: ["DTPa-HepB-", "IPV-Hib"],    key: "6-in-1" },
+    { label: "PCV",       key: "PCV20" },
+    { label: "Rotavirus", key: "Rota" },
+    { label: "MenB",      key: "MenB" },
+    { label: "Influenza", key: "Flu" },
+    { label: "MenACWY",   key: "MenACWY" },
+    { label: "MMR",       key: "MMR" },
+    { label: "Hib",       key: "Hib" },
+    { label: "DTPa",      key: "DTPa" },
+    { label: "MMRV",      key: "MMRV" },
+    { label: ["Varicella", "(2nd dose)"], key: "VZV2" },
+    { label: "Hep A",     key: "HepA" },
+    { label: "DTPa-IPV",  key: "DTPa-IPV" },
+    { label: "HPV",       key: "HPV" },
+    { label: "dTpa",      key: "dTpa" },
+  ];
 
-  const getDotsForVaccine = (shortName) => {
-    return SCHEDULE_DATA
-      .filter(d => d.shortName === shortName && d.ageSort <= 8)
-      .map(d => {
-        const weekMap = { 0: 0, 1: 6, 2: 16, 3: 24, 3.5: 26, 4: 48, 5: 72, 6: 192, 7: 576, 8: 720 };
-        return { x: weekMap[d.ageSort] || 0, type: d.type };
-      });
+  const rows = viewMode === "components" ? TIMELINE_ANTIGENS : COMBO_VACCINES;
+  const W = 920;
+  const H = rows.length * 38 + 66;
+  const left = 115;
+  const right = W - 30;
+
+  const xScale = (weeks) => {
+    const ages = TIMELINE_AGES;
+    if (weeks <= ages[0].x) return left + (ages[0].pct / 100) * (right - left);
+    if (weeks >= ages[ages.length - 1].x) return left + (ages[ages.length - 1].pct / 100) * (right - left);
+    for (let i = 0; i < ages.length - 1; i++) {
+      if (weeks >= ages[i].x && weeks <= ages[i + 1].x) {
+        const t = (weeks - ages[i].x) / (ages[i + 1].x - ages[i].x);
+        const pct = ages[i].pct + t * (ages[i + 1].pct - ages[i].pct);
+        return left + (pct / 100) * (right - left);
+      }
+    }
+    return left;
+  };
+
+  const weekMap = { 0: 0, 0.5: 3, 1: 6, 2: 16, 3: 24, 3.5: 26, 4: 48, 5: 72, 5.5: 76, 6: 192, 7: 576, 8: 720, 8.5: 750 };
+
+  // Components mode: map through COMBO_MAP to find all doses containing this antigen
+  const getDotsForAntigen = (antigenKey) => {
+    const dots = [];
+    const seen = new Set();
+    SCHEDULE_DATA.forEach(d => {
+      if (d.ageSort > 8.5) return;
+      const antigens = COMBO_MAP[d.shortName] || [];
+      if (antigens.includes(antigenKey)) {
+        const x = weekMap[d.ageSort] || 0;
+        const dedupKey = `${x}-${d.type}`;
+        if (!seen.has(dedupKey)) {
+          seen.add(dedupKey);
+          const isCombo = antigens.length > 1;
+          dots.push({ x, type: d.type, isCombo });
+        }
+      }
+    });
+    return dots;
+  };
+
+  // Combo mode: direct shortName match
+  const getDotsForCombo = (shortName) => {
+    const dots = [];
+    const seen = new Set();
+    SCHEDULE_DATA.forEach(d => {
+      if (d.ageSort > 8.5) return;
+      if (d.shortName === shortName) {
+        const x = weekMap[d.ageSort] || 0;
+        const dedupKey = `${x}-${d.type}`;
+        if (!seen.has(dedupKey)) {
+          seen.add(dedupKey);
+          dots.push({ x, type: d.type, isCombo: false });
+        }
+      }
+    });
+    return dots;
   };
 
   return (
     <div ref={scrollRef} style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{ minWidth: "800px", width: "100%", height: "auto" }}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ minWidth: "820px", width: "100%", height: "auto" }}>
         {/* Age axis */}
         {TIMELINE_AGES.map((a, i) => (
           <g key={i}>
-            <line x1={xScale(a.x)} y1={30} x2={xScale(a.x)} y2={H - 10} stroke="#e0e0e0" strokeWidth={1} />
-            <text x={xScale(a.x)} y={20} textAnchor="middle" fontSize="11" fill="#888" fontFamily="system-ui">{a.label}</text>
+            <line x1={xScale(a.x)} y1={36} x2={xScale(a.x)} y2={H - 10} stroke="#e0e0e0" strokeWidth={1} />
+            <text x={xScale(a.x)} y={22} textAnchor="middle" fontSize="14" fill="#555" fontFamily="system-ui" fontWeight="600">{a.label}</text>
           </g>
         ))}
-        {/* Vaccine rows */}
-        {vaccines.map((v, i) => {
-          const y = 50 + i * 32;
-          const dots = getDotsForVaccine(v);
+        {/* Rows */}
+        {rows.map((row, i) => {
+          const y = 56 + i * 38;
+          const dots = viewMode === "components" ? getDotsForAntigen(row.key) : getDotsForCombo(row.key);
+          const handleLabelClick = onSelect ? () => {
+            // In combo mode, match by shortName; in components mode, find any item containing this antigen
+            let item;
+            if (viewMode === "combo") {
+              item = SCHEDULE_DATA.find(d => d.shortName === row.key);
+            } else {
+              item = SCHEDULE_DATA.find(d => {
+                const antigens = COMBO_MAP[d.shortName] || [];
+                return antigens.includes(row.key) && antigens.length === 1;
+              }) || SCHEDULE_DATA.find(d => {
+                const antigens = COMBO_MAP[d.shortName] || [];
+                return antigens.includes(row.key);
+              });
+            }
+            if (item) onSelect(item);
+          } : undefined;
           return (
-            <g key={v}>
-              <text x={left - 8} y={y + 5} textAnchor="end" fontSize="11" fill="#444" fontFamily="system-ui" fontWeight="500">{v}</text>
+            <g key={row.key}>
+              <g onClick={handleLabelClick} style={{ cursor: onSelect ? "pointer" : "default" }}>
+                {Array.isArray(row.label) ? (
+                  <text x={left - 10} y={y - 3} textAnchor="end" fontSize="12" fill={onSelect ? "#2d2b55" : "#333"} fontFamily="system-ui" fontWeight="600" textDecoration="underline" style={{ textDecorationColor: "#ccc" }}>
+                    {row.label.map((line, li) => (
+                      <tspan key={li} x={left - 10} dy={li === 0 ? 0 : 14}>{line}</tspan>
+                    ))}
+                  </text>
+                ) : (
+                  <text x={left - 10} y={y + 5} textAnchor="end" fontSize="14" fill={onSelect ? "#2d2b55" : "#333"} fontFamily="system-ui" fontWeight="600" textDecoration="underline" style={{ textDecorationColor: "#ccc" }}>
+                    {row.label}
+                  </text>
+                )}
+              </g>
               <line x1={left} y1={y} x2={right} y2={y} stroke="#f0f0f0" strokeWidth={1} />
-              {dots.map((d, j) => (
-                <circle key={j} cx={xScale(d.x)} cy={y} r={5.5}
-                  fill={TYPES[d.type].color} opacity={0.85} />
-              ))}
+              {(() => {
+                // Group dots by x position for offset when stacked
+                const grouped = {};
+                dots.forEach((d, j) => {
+                  const key = d.x;
+                  if (!grouped[key]) grouped[key] = [];
+                  grouped[key].push({ ...d, j });
+                });
+                return dots.map((d, j) => {
+                  const siblings = grouped[d.x];
+                  const idx = siblings.findIndex(s => s.j === j);
+                  const offset = siblings.length > 1 ? (idx - (siblings.length - 1) / 2) * 9 : 0;
+                  return (
+                    <g key={j}>
+                      <circle cx={xScale(d.x) + offset} cy={y} r={6.5}
+                        fill={TYPES[d.type].color} opacity={0.9} />
+                      {d.isCombo && (
+                        <circle cx={xScale(d.x) + offset} cy={y} r={6.5}
+                          fill="none" stroke="#fff" strokeWidth={2} opacity={0.8} />
+                      )}
+                    </g>
+                  );
+                });
+              })()}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+function PregnancyTimeline({ onSelect }) {
+  const W = 700;
+  const H = 200;
+  const left = 115;
+  const right = W - 30;
+  const span = right - left;
+
+  // Gestational weeks 0–40
+  const wkToX = (wk) => left + (wk / 40) * span;
+  const ticks = [0, 8, 16, 20, 24, 28, 32, 36, 40];
+
+  const vaccines = [
+    { label: "Influenza", color: TYPES.routine.color, startWk: 0, endWk: 40, noteY: 60, note: "Any trimester", shortName: "Flu" },
+    { label: "Pertussis (dTpa)", color: TYPES.routine.color, startWk: 20, endWk: 32, noteY: 100, note: "Ideally 20–32 wks", shortName: "dTpa", idealStart: 20, idealEnd: 32, extendEnd: 40 },
+    { label: "RSV (Abrysvo)", color: TYPES.routine.color, startWk: 28, endWk: 36, noteY: 140, note: "28–36 wks (NIP-funded)", shortName: "RSV", idealStart: 28, idealEnd: 36, extendEnd: 40 },
+  ];
+
+  const handleClick = (shortName) => {
+    if (!onSelect) return;
+    const item = SCHEDULE_DATA.find(d => d.shortName === shortName && d.age === "Pregnancy");
+    if (item) onSelect(item);
+  };
+
+  return (
+    <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ minWidth: "600px", width: "100%", height: "auto" }}>
+        {/* Gestational age axis */}
+        {ticks.map(wk => (
+          <g key={wk}>
+            <line x1={wkToX(wk)} y1={38} x2={wkToX(wk)} y2={H - 10} stroke="#e8e8e8" strokeWidth={1} />
+            <text x={wkToX(wk)} y={24} textAnchor="middle" fontSize="12" fill="#888" fontFamily="system-ui" fontWeight="500">
+              {wk === 0 ? "Conception" : wk === 40 ? "Birth" : `${wk}w`}
+            </text>
+          </g>
+        ))}
+
+        {/* Vaccine bars */}
+        {vaccines.map((v, i) => {
+          const y = v.noteY;
+          const barH = 22;
+          return (
+            <g key={i} onClick={() => handleClick(v.shortName)} style={{ cursor: onSelect ? "pointer" : "default" }}>
+              {/* Extended range (lighter) if applicable */}
+              {v.extendEnd && (
+                <rect x={wkToX(v.endWk)} y={y - barH / 2} width={wkToX(v.extendEnd) - wkToX(v.endWk)} height={barH}
+                  rx={4} fill={v.color} opacity={0.15} />
+              )}
+              {/* Primary recommended window */}
+              <rect x={wkToX(v.startWk)} y={y - barH / 2} width={wkToX(v.endWk) - wkToX(v.startWk)} height={barH}
+                rx={4} fill={v.color} opacity={0.25} />
+              {/* Label */}
+              <text x={left - 10} y={y + 5} textAnchor="end" fontSize="13" fill={onSelect ? "#2d2b55" : "#333"}
+                fontFamily="system-ui" fontWeight="600" textDecoration="underline" style={{ textDecorationColor: "#ccc" }}>
+                {v.label}
+              </text>
+              {/* Timing note */}
+              <text x={(wkToX(v.startWk) + wkToX(v.endWk)) / 2} y={y + 4} textAnchor="middle"
+                fontSize="11" fill={v.color} fontFamily="system-ui" fontWeight="600">
+                {v.note}
+              </text>
             </g>
           );
         })}
@@ -345,7 +653,7 @@ function FAQ() {
   const faqs = [
     {
       q: "What vaccines does my child need in Australia?",
-      a: "The NIP provides free vaccines from birth through adolescence. Key vaccines include: Hepatitis B (birth), hexavalent DTPa-HepB-IPV-Hib (6w, 4m, 6m), Pneumococcal PCV20 (6w, 4m, 12m), Rotavirus (6w, 4m), MMR (12m), MMRV (18m), and boosters at 4 years. School programs provide HPV and dTpa in Year 7, and MenACWY in Year 10."
+      a: "The NIP provides free vaccines from birth through adolescence. Key vaccines include: Hepatitis B (birth), hexavalent DTPa-HepB-IPV-Hib (6w, 4m, 6m), Pneumococcal PCV20 (6w, 4m, 12m), Rotavirus (6w, 4m), MMR (12m), MMRV (18m), and boosters at 4 years. School programs provide HPV and dTpa in Year 7, and MenACWY in Year 10. Additionally, Meningococcal B and a second varicella dose are recommended for all children but not NIP-funded (purple badges on the schedule)."
     },
     {
       q: "What changed in the NIP from September 2025 / January 2026?",
@@ -357,7 +665,19 @@ function FAQ() {
     },
     {
       q: "What vaccines are recommended in pregnancy?",
-      a: "Pertussis (dTpa/Boostrix) is recommended each pregnancy at 28–32 weeks gestation (can be given up to delivery) to provide passive antibody protection to the newborn. Influenza vaccine is recommended each pregnancy at any trimester. COVID-19 vaccination is also recommended."
+      a: "Three vaccines are recommended in every pregnancy: Pertussis (dTpa/Boostrix) at 20–32 weeks gestation to provide passive antibody protection to the newborn. Influenza vaccine at any trimester. RSV vaccine (Abrysvo) from 28 weeks gestation — NIP-funded from February 2025. Abrysvo provides passive RSV protection to the infant for approximately 6 months. Only Abrysvo is approved for pregnancy — Arexvy must NOT be used."
+    },
+    {
+      q: "What about nirsevimab (Beyfortus) for RSV?",
+      a: "Nirsevimab is a long-acting monoclonal antibody (not a vaccine) that protects infants against RSV. It is state/territory-funded — not on the NIP. It is given to eligible infants whose mothers did not receive Abrysvo, who were vaccinated less than 2 weeks before delivery, or who have medical risk factors for severe RSV. Seasonal programs typically run April–September but eligibility and timing vary by jurisdiction."
+    },
+    {
+      q: "What about Meningococcal B (Bexsero) for non-Indigenous children?",
+      a: "Bexsero is recommended by ATAGI for ALL infants under 2 years and ALL adolescents 15–19 years — but is not NIP-funded for non-Indigenous children. It is state-funded in SA, QLD, and NT. In Victoria and other states, parents need a private prescription (~$110–135 per dose). MenB is the most common serogroup causing invasive meningococcal disease in Australia."
+    },
+    {
+      q: "Should my child have a second varicella dose?",
+      a: "Yes — ATAGI recommends a 2nd dose of varicella vaccine for all children aged 12 months to under 14 years. However, the 2nd dose is NOT NIP-funded. A single dose (given as MMRV at 18 months) provides ~70% protection, while 2 doses give >90% protection and significantly reduce breakthrough varicella. The 2nd dose can be given ≥4 weeks after the first, using monovalent varicella vaccine (Varilrix)."
     },
     {
       q: "What if my child missed a vaccine dose?",
@@ -365,7 +685,7 @@ function FAQ() {
     },
     {
       q: "Do vaccine schedules vary between states and territories?",
-      a: "There can be slight variations. For example, some states fund additional vaccines beyond the NIP (e.g., Queensland funds MenB for all infants). BCG availability varies between jurisdictions. Always check your local state/territory immunisation schedule."
+      a: "Yes, significantly for some vaccines. Meningococcal B is state-funded for all infants in SA, QLD, and NT but not in Victoria, NSW, WA, ACT, or Tasmania. Nirsevimab (RSV mAb) is state/territory-funded but eligibility criteria, seasonal timing, and catch-up age limits vary by jurisdiction. Hepatitis A is funded for Aboriginal & Torres Strait Islander children in QLD, NT, SA, and WA only. Always check your local state/territory schedule and the Australian Immunisation Handbook."
     },
     {
       q: "Is the Rotavirus vaccine time-critical?",
@@ -402,14 +722,16 @@ export default function AustralianNIPSchedule() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [activeSection, setActiveSection] = useState("schedule");
   const [selectedItem, setSelectedItem] = useState(null);
+  const [viewMode, setViewMode] = useState("combo"); // "combo" or "components"
 
   const filtered = useMemo(() => {
-    return SCHEDULE_DATA.filter(d => {
+    const source = viewMode === "components" ? expandScheduleData(SCHEDULE_DATA) : SCHEDULE_DATA;
+    return source.filter(d => {
       if (ageFilter !== "All ages" && d.age !== ageFilter) return false;
       if (typeFilter !== "all" && d.type !== typeFilter) return false;
       return true;
     });
-  }, [ageFilter, typeFilter]);
+  }, [ageFilter, typeFilter, viewMode]);
 
   const grouped = useMemo(() => {
     const groups = {};
@@ -455,13 +777,13 @@ export default function AustralianNIPSchedule() {
 
       {/* Header */}
       <header style={{
-        background: "linear-gradient(135deg, #0D3B2E 0%, #1a5c47 50%, #0D3B2E 100%)",
+        background: "linear-gradient(135deg, #1a1a2e 0%, #2d2b55 50%, #1a1a2e 100%)",
         color: "#fff", padding: "48px 24px 40px", textAlign: "center",
         position: "relative", overflow: "hidden"
       }}>
         <div style={{
           position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-          background: "radial-gradient(ellipse at 20% 50%, rgba(255,255,255,0.06) 0%, transparent 60%)",
+          background: "radial-gradient(ellipse at 20% 50%, rgba(255,255,255,0.04) 0%, transparent 60%)",
           pointerEvents: "none"
         }} />
         <div style={{ position: "relative", maxWidth: "680px", margin: "0 auto" }}>
@@ -478,7 +800,7 @@ export default function AustralianNIPSchedule() {
             Australian Childhood<br />Immunisation Schedule
           </h1>
           <p style={{ fontSize: "15px", opacity: 0.8, maxWidth: "520px", margin: "0 auto", lineHeight: 1.6 }}>
-            A clearer way to see NIP-funded vaccines from birth through adulthood, including Aboriginal and Torres Strait Islander programs.
+            A clearer way to see NIP-funded vaccines from birth through adulthood, including Aboriginal and Torres Strait Islander programs, state-funded programs, and recommended but unfunded vaccines.
           </p>
           <div style={{ display: "flex", justifyContent: "center", gap: "12px", marginTop: "24px", flexWrap: "wrap" }}>
             {Object.entries(TYPES).map(([key, val]) => (
@@ -506,7 +828,6 @@ export default function AustralianNIPSchedule() {
         overflowX: "auto", WebkitOverflowScrolling: "touch"
       }}>
         {navBtn("schedule", "Schedule by Age")}
-        {navBtn("timeline", "Visual Timeline")}
         {navBtn("reference", "Vaccine Reference")}
         {navBtn("faq", "FAQ")}
       </nav>
@@ -517,9 +838,78 @@ export default function AustralianNIPSchedule() {
         {activeSection === "schedule" && (
           <section>
             <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: "26px", fontWeight: 400, margin: "0 0 6px" }}>Schedule by Age</h2>
-            <p style={{ color: "#777", fontSize: "14px", margin: "0 0 20px" }}>Filter by age group or recommendation type. Tap any vaccine for full details.</p>
+            <p style={{ color: "#777", fontSize: "14px", margin: "0 0 20px" }}>Overview of all childhood vaccines. Tap any card below for full details.</p>
 
-            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "24px" }}>
+            {/* View mode toggle */}
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+              <span style={{ fontSize: "13px", color: "#888", fontWeight: 600 }}>View as:</span>
+              <div style={{
+                display: "inline-flex", borderRadius: "8px", border: "1px solid #d0d0d0",
+                overflow: "hidden"
+              }}>
+                {[["combo", "Combination vaccines"], ["components", "Individual antigens"]].map(([val, label]) => (
+                  <button key={val} onClick={() => setViewMode(val)} style={{
+                    padding: "7px 14px", border: "none", fontSize: "13px", fontWeight: 600,
+                    fontFamily: "inherit", cursor: "pointer", transition: "all 0.15s ease",
+                    background: viewMode === val ? "#1a1a2e" : "#fff",
+                    color: viewMode === val ? "#fff" : "#555",
+                  }}>{label}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Timeline overview */}
+            <div style={{ background: "#fff", borderRadius: "12px", border: "1px solid #e8e8e8", padding: "16px", overflow: "hidden", marginBottom: "12px" }}>
+              <Timeline viewMode={viewMode} onSelect={setSelectedItem} />
+            </div>
+            <div style={{ display: "flex", gap: "16px", marginBottom: "16px", flexWrap: "wrap" }}>
+              {Object.entries(TYPES).map(([key, val]) => (
+                <span key={key} style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#666" }}>
+                  <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: val.color, display: "inline-block" }} />
+                  {val.label}
+                </span>
+              ))}
+              {viewMode === "components" && (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#666" }}>
+                  <span style={{ width: "12px", height: "12px", borderRadius: "50%", background: "#0D6E3F", display: "inline-block", border: "2px solid #fff", boxShadow: "0 0 0 1px #ccc" }} />
+                  Given as combination vaccine
+                </span>
+              )}
+            </div>
+
+            {/* Pregnancy timeline */}
+            <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#1a1a2e", margin: "24px 0 10px" }}>
+              Vaccines in Pregnancy
+            </h3>
+            <p style={{ fontSize: "13px", color: "#777", margin: "0 0 12px", lineHeight: 1.5 }}>
+              Timing windows by gestational age. Darker bars = recommended window. Lighter extensions = can still be given if missed.
+            </p>
+            <div style={{ background: "#fff", borderRadius: "12px", border: "1px solid #e8e8e8", padding: "16px", overflow: "hidden", marginBottom: "16px" }}>
+              <PregnancyTimeline onSelect={setSelectedItem} />
+            </div>
+
+            {/* Multivalent vaccine legend — only in components view */}
+            {viewMode === "components" && (
+              <div style={{
+                background: "#f8f8f6", borderRadius: "8px", padding: "12px 16px",
+                marginBottom: "28px", fontSize: "13px", color: "#555", lineHeight: 1.7
+              }}>
+                <strong style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#888" }}>Combination vaccines</strong>
+                <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", marginTop: "6px" }}>
+                  {MULTIVALENT_LEGEND.map((m, i) => (
+                    <span key={i}>
+                      <strong style={{ color: "#333" }}>{m.combo}</strong>{" "}
+                      <span style={{ color: "#777" }}>({m.ages})</span>
+                      <br />
+                      <span style={{ fontSize: "12px" }}>Contains: {m.contains}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {viewMode === "combo" && <div style={{ marginBottom: "12px" }} />}
+
+            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "24px", alignItems: "center" }}>
               <select value={ageFilter} onChange={e => setAgeFilter(e.target.value)} style={selectStyle}>
                 <option>All ages</option>
                 {AGE_GROUPS.map(a => <option key={a}>{a}</option>)}
@@ -539,32 +929,13 @@ export default function AustralianNIPSchedule() {
                 <h3 style={{
                   fontSize: "16px", fontWeight: 700, color: "#1a1a2e",
                   margin: "0 0 10px", padding: "0 0 8px",
-                  borderBottom: "2px solid #0D3B2E", display: "inline-block"
+                  borderBottom: "2px solid #2d2b55", display: "inline-block"
                 }}>{age}</h3>
                 {items.map((item, i) => (
                   <VaccineCard key={i} item={item} onClick={setSelectedItem} />
                 ))}
               </div>
             ))}
-          </section>
-        )}
-
-        {/* Timeline */}
-        {activeSection === "timeline" && (
-          <section>
-            <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: "26px", fontWeight: 400, margin: "0 0 6px" }}>Visual Timeline</h2>
-            <p style={{ color: "#777", fontSize: "14px", margin: "0 0 20px" }}>Each row is a vaccine. Dots mark individual doses across the age axis.</p>
-            <div style={{ background: "#fff", borderRadius: "12px", border: "1px solid #e8e8e8", padding: "16px", overflow: "hidden" }}>
-              <Timeline />
-            </div>
-            <div style={{ display: "flex", gap: "16px", marginTop: "12px", flexWrap: "wrap" }}>
-              {Object.entries(TYPES).map(([key, val]) => (
-                <span key={key} style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#666" }}>
-                  <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: val.color, display: "inline-block" }} />
-                  {val.label}
-                </span>
-              ))}
-            </div>
           </section>
         )}
 
@@ -604,6 +975,7 @@ export default function AustralianNIPSchedule() {
           </a>{" "}(Jan 2026).
         </p>
         <p style={{ margin: 0 }}>Built to support, not replace, clinical judgment. For informational purposes only.</p>
+        <p style={{ margin: "12px 0 0", fontWeight: 600, color: "#777" }}>Dr Marc Theilhaber · Dept of Respiratory Medicine · Monash Children's Hospital</p>
       </footer>
 
       <Modal item={selectedItem} onClose={() => setSelectedItem(null)} />
