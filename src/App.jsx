@@ -1,4 +1,3 @@
-import { useState, useMemo, useEffect, useRef } from "react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Analytics } from "@vercel/analytics/react";
 
@@ -824,9 +823,9 @@ function FAQ() {
   );
 }
 
-// ──────────────────────────────────────────────
+// ----------------------------------------------
 // Patient Schedule Calculator
-// ──────────────────────────────────────────────
+// ----------------------------------------------
 
 // ageSort → weeks since birth (childhood + adult)
 const AGESORT_WEEKS = {
@@ -855,6 +854,21 @@ function formatRelativeWeeks(weeks) {
   if (abs < 8) return `${Math.round(abs)} weeks`;
   if (abs < 30) return `${Math.round(abs / 4.33)} months`;
   return `${(abs / 52).toFixed(1)} years`;
+}
+
+function formatNextDueTiming(weeksFromNow) {
+  if (weeksFromNow < 8) return `in ${Math.round(weeksFromNow)} weeks`;
+  if (weeksFromNow < 52) return `in ${Math.round(weeksFromNow / 4.33)} months`;
+  const totalMonths = Math.round(weeksFromNow / 4.33);
+  const years = Math.floor(totalMonths / 12);
+  const months = totalMonths % 12;
+  if (weeksFromNow < 104) {
+    // under 2 years: show years + months
+    if (months === 0) return `in ${years} year${years !== 1 ? "s" : ""}`;
+    return `in ${years} year${years !== 1 ? "s" : ""} ${months} month${months !== 1 ? "s" : ""}`;
+  }
+  // 2+ years: years only
+  return `in ${years} year${years !== 1 ? "s" : ""}`;
 }
 
 function formatDate(date) {
@@ -921,7 +935,7 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
     return { overdue, upcoming, nextDue };
   }, [dobDate, stateFilter]);
 
-  // ── PDF generation ────────────────────────────────────────────────────
+  // -- PDF generation ----------------------------------------------------
   const loadJsPDF = () => new Promise((resolve, reject) => {
     if (window.jspdf) { resolve(window.jspdf); return; }
     const script = document.createElement("script");
@@ -941,7 +955,7 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
       const W = 210; const H = 297;
       const ML = 18; const MR = 18; const CW = W - ML - MR;
 
-      // ── helpers ──
+      // -- helpers --
       const hex2rgb = h => {
         const r = parseInt(h.slice(1,3),16), g = parseInt(h.slice(3,5),16), b = parseInt(h.slice(5,7),16);
         return [r, g, b];
@@ -958,7 +972,7 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
       const stateName = stateFilter === "ALL" ? "All states/territories" : STATES[stateFilter];
       const todayStr = formatDate(today);
 
-      // ── HEADER ──────────────────────────────────────────────────────
+      // -- HEADER ------------------------------------------------------
       setFill("#1a1a2e"); doc.rect(0, 0, W, 42, "F");
       // Subtle accent stripe
       setFill("#2d2b55"); doc.rect(0, 38, W, 4, "F");
@@ -978,7 +992,7 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
       doc.text(`Generated ${todayStr}`, W - MR, 16, { align: "right" });
       doc.text("nip.terrific.website", W - MR, 21, { align: "right" });
 
-      // ── PATIENT CARD ─────────────────────────────────────────────────
+      // -- PATIENT CARD -------------------------------------------------
       setFill("#F4F6FB"); doc.roundedRect(ML, 48, CW, 22, 3, 3, "F");
       setFill("#1a1a2e"); doc.rect(ML, 48, 4, 22, "F");
 
@@ -995,7 +1009,7 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
       doc.setFontSize(11);
       doc.text(stateName, ML + 120, 64);
 
-      // ── SECTION RENDERER ──────────────────────────────────────────────
+      // -- SECTION RENDERER ----------------------------------------------
       let y = 80;
       const PAGE_BOTTOM = 272;
       const ROW_H = 16;
@@ -1124,7 +1138,7 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
         y += 6;
       }
 
-      // ── NEXT VACCINE DUE (beyond the 2-month window) ─────────────────────
+      // -- NEXT VACCINE DUE (beyond the 2-month window) ---------------------
       const nextBeyond = schedule.nextDue && schedule.nextDue.weeksFromNow > 8.7 ? schedule.nextDue : null;
       if (nextBeyond) {
         checkPageBreak(22);
@@ -1151,15 +1165,13 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
         doc.setFont("helvetica", "normal"); doc.setFontSize(8);
         setTextColor("#888888");
         const wfn = nextBeyond.weeksFromNow;
-        const timing = wfn < 20 ? `in ${Math.round(wfn)} weeks`
-          : wfn < 87 ? `in ${Math.round(wfn / 4.33)} months`
-          : `in ${(wfn / 52).toFixed(1)} years`;
+        const timing = formatNextDueTiming(wfn);
         doc.text(timing, ML + CW - 2, y + 15, { align: "right" });
 
         y += 24;
       }
 
-      // ── FOOTER ───────────────────────────────────────────────────────
+      // -- FOOTER -------------------------------------------------------
       // Footer on last page
       const footerY = H - 22;
       setStroke("#E0E0E0");
@@ -1197,7 +1209,7 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
       setPdfLoading(false);
     }
   };
-  // ── end PDF generation ────────────────────────────────────────────────
+  // -- end PDF generation ------------------------------------------------
 
   const stateName = stateFilter === "ALL" ? "all states" : STATES[stateFilter];
 
@@ -1322,7 +1334,7 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
               </div>
             </div>
           )}
-          {dobDate && totalCount > 0 && (
+          {dobDate && (
             <div style={{ marginLeft: "auto", display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" }}>
               {schedule.overdue.length > 0 && (
                 <div style={{ textAlign: "center", background: "#fff0f0", borderRadius: "8px", padding: "8px 14px" }}>
@@ -1387,47 +1399,49 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
             title="Due in next 2 months" items={schedule.upcoming} status="upcoming"
             color="#1D4ED8" bg="#eff6ff" icon={"📅"}
           />
-          {(() => {
-            const nextBeyond = schedule.nextDue && schedule.nextDue.weeksFromNow > 8.7 ? schedule.nextDue : null;
-            if (!nextBeyond) return null;
-            const wfn = nextBeyond.weeksFromNow;
-            const timing = wfn < 20 ? `in ${Math.round(wfn)} weeks`
-              : wfn < 87 ? `in ${Math.round(wfn / 4.33)} months`
-              : `in ${(wfn / 52).toFixed(1)} years`;
-            return (
-              <div style={{
-                display: "flex", alignItems: "center", gap: "16px",
-                background: "#fff", borderRadius: "10px",
-                border: "1px solid #e0e4f0",
-                borderLeft: "4px solid #2d2b55",
-                padding: "14px 18px", marginBottom: "20px",
-              }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: "10px", fontWeight: 700, color: "#999", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>
-                    Next vaccine due
-                  </div>
-                  <div style={{ fontSize: "15px", fontWeight: 700, color: "#1a1a2e" }}>
-                    {nextBeyond.vaccine}
-                  </div>
-                  <div style={{ fontSize: "12px", color: "#888", marginTop: "2px" }}>
-                    {nextBeyond.brand} · {nextBeyond.route}
-                  </div>
-                </div>
-                <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div style={{ fontSize: "15px", fontWeight: 700, color: "#2d2b55" }}>
-                    {formatDate(nextBeyond.dueDate)}
-                  </div>
-                  <div style={{ fontSize: "12px", color: "#888", marginTop: "2px" }}>
-                    {timing}
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
-          <p style={{ fontSize: "11px", color: "#bbb", marginTop: "16px", lineHeight: 1.6 }}>
-            This tool does not account for vaccines already given. Always verify the patient's immunisation history in AIR before administering. Tap any vaccine for full details.
-          </p>
         </>
+      )}
+
+      {dobDate && (() => {
+        const nextBeyond = schedule.nextDue && schedule.nextDue.weeksFromNow > 8.7 ? schedule.nextDue : null;
+        if (!nextBeyond) return null;
+        const wfn = nextBeyond.weeksFromNow;
+        const timing = formatNextDueTiming(wfn);
+        return (
+          <div style={{
+            display: "flex", alignItems: "center", gap: "16px",
+            background: "#fff", borderRadius: "10px",
+            border: "1px solid #e0e4f0",
+            borderLeft: "4px solid #2d2b55",
+            padding: "14px 18px", marginBottom: "20px",
+          }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: "10px", fontWeight: 700, color: "#999", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>
+                Next vaccine due
+              </div>
+              <div style={{ fontSize: "15px", fontWeight: 700, color: "#1a1a2e" }}>
+                {nextBeyond.vaccine}
+              </div>
+              <div style={{ fontSize: "12px", color: "#888", marginTop: "2px" }}>
+                {nextBeyond.brand} · {nextBeyond.route}
+              </div>
+            </div>
+            <div style={{ textAlign: "right", flexShrink: 0 }}>
+              <div style={{ fontSize: "15px", fontWeight: 700, color: "#2d2b55" }}>
+                {formatDate(nextBeyond.dueDate)}
+              </div>
+              <div style={{ fontSize: "12px", color: "#888", marginTop: "2px" }}>
+                {timing}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {dobDate && (
+        <p style={{ fontSize: "11px", color: "#bbb", marginTop: "8px", lineHeight: 1.6 }}>
+          This tool does not account for vaccines already given. Always verify the patient's immunisation history in AIR before administering. Tap any vaccine for full details.
+        </p>
       )}
     </section>
   );
@@ -1440,7 +1454,7 @@ export default function AustralianNIPSchedule() {
   const [activeSection, setActiveSection] = useState("schedule");
   const [selectedItem, setSelectedItem] = useState(null);
   const [viewMode, setViewMode] = useState("combo"); // "combo" or "components"
-  const [openAgeGroups, setOpenAgeGroups] = useState(null); // null = all open
+  const [openAgeGroups, setOpenAgeGroups] = useState(null); // null = all open; Set = explicit
 
   const filtered = useMemo(() => {
     const source = viewMode === "components" ? expandScheduleData(SCHEDULE_DATA) : SCHEDULE_DATA;
@@ -1684,66 +1698,46 @@ export default function AustralianNIPSchedule() {
 
             {grouped.map(([age, items]) => {
               const isOpen = openAgeGroups === null || openAgeGroups.has(age);
-              const toggle = () => setOpenAgeGroups(prev => {
-                // First toggle: build explicit set from all current ages
-                const allAges = new Set(grouped.map(([a]) => a));
-                const current = prev === null ? allAges : new Set(prev);
-                if (current.has(age)) current.delete(age);
-                else current.add(age);
-                return current;
-              });
-              // Count funded vs total for badge
-              const fundedCount = items.filter(it => {
-                const { type, shortName } = it;
-                return isFundedInState(it, stateFilter);
-              }).length;
+              const toggle = () => {
+                setOpenAgeGroups(prev => {
+                  const base = prev === null ? new Set(grouped.map(([a]) => a)) : new Set(prev);
+                  if (base.has(age)) base.delete(age); else base.add(age);
+                  return base;
+                });
+              };
               return (
-                <div key={age} style={{ marginBottom: "6px" }}>
-                  <button
-                    onClick={toggle}
-                    style={{
-                      width: "100%", textAlign: "left", background: "none", border: "none",
-                      padding: "0", cursor: "pointer", fontFamily: "inherit",
-                      display: "flex", alignItems: "center", gap: "10px",
-                      marginBottom: isOpen ? "10px" : "2px",
-                    }}
-                  >
-                    {/* Chevron */}
-                    <svg
-                      width="16" height="16" viewBox="0 0 16 16"
-                      style={{
-                        flexShrink: 0,
-                        transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
-                        transition: "transform 0.2s ease",
-                        color: "#2d2b55",
-                      }}
-                      fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                    >
-                      <polyline points="6 4 10 8 6 12" />
+                <div key={age} style={{ marginBottom: "12px" }}>
+                  <button onClick={toggle} style={{
+                    display: "flex", alignItems: "center", gap: "8px",
+                    background: "none", border: "none", cursor: "pointer",
+                    padding: "0 0 8px", marginBottom: isOpen ? "10px" : "0",
+                    borderBottom: `2px solid ${isOpen ? "#2d2b55" : "#e0e0e0"}`,
+                    width: "100%", textAlign: "left", fontFamily: "inherit",
+                    transition: "border-color 0.2s",
+                  }}>
+                    <svg width="12" height="12" viewBox="0 0 12 12" style={{
+                      flexShrink: 0,
+                      transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
+                      transition: "transform 0.2s ease",
+                      color: "#2d2b55",
+                    }}>
+                      <polyline points="3,2 9,6 3,10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
-                    {/* Age label */}
                     <span style={{
                       fontSize: "16px", fontWeight: 700, color: "#1a1a2e",
-                      borderBottom: isOpen ? "2px solid #2d2b55" : "2px solid transparent",
-                      paddingBottom: "4px", transition: "border-color 0.2s ease",
                     }}>{age}</span>
-                    {/* Item count pill */}
                     <span style={{
+                      marginLeft: "auto",
                       fontSize: "11px", fontWeight: 700,
-                      background: isOpen ? "#2d2b55" : "#e8e8e8",
+                      padding: "2px 8px", borderRadius: "12px",
+                      background: isOpen ? "#1a1a2e" : "#e8e8e8",
                       color: isOpen ? "#fff" : "#888",
-                      padding: "2px 7px", borderRadius: "10px",
-                      transition: "all 0.2s ease",
-                      marginLeft: "2px",
+                      transition: "all 0.2s",
                     }}>{items.length}</span>
                   </button>
-                  {isOpen && (
-                    <div style={{ marginBottom: "22px" }}>
-                      {items.map((item, i) => (
-                        <VaccineCard key={i} item={item} onClick={setSelectedItem} selectedState={stateFilter} />
-                      ))}
-                    </div>
-                  )}
+                  {isOpen && items.map((item, i) => (
+                    <VaccineCard key={i} item={item} onClick={setSelectedItem} selectedState={stateFilter} />
+                  ))}
                 </div>
               );
             })}
@@ -1798,8 +1792,6 @@ export default function AustralianNIPSchedule() {
       </footer>
 
       <Modal item={selectedItem} onClose={() => setSelectedItem(null)} />
-      <SpeedInsights />
-      <Analytics />
     </div>
   );
 }
