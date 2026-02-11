@@ -1187,7 +1187,7 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
             )}
           </div>
           <div style={{ fontSize: "12px", color: "#888", marginTop: "3px" }}>
-            {item.brand} \u00B7 {item.route}
+            {item.brand} · {item.route}
           </div>
         </div>
         <div style={{ textAlign: "right", flexShrink: 0 }}>
@@ -1344,12 +1344,12 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
       {dobDate && totalCount > 0 && (
         <>
           <SectionBlock
-            title="Recently due \u2014 confirm in AIR" items={schedule.overdue} status="overdue"
-            color="#c0392b" bg="#fff0f0" icon="\u26A0\uFE0F"
+            title="Recently due — confirm in AIR" items={schedule.overdue} status="overdue"
+            color="#c0392b" bg="#fff0f0" icon={"⚠️"}
           />
           <SectionBlock
             title="Due in next 2 months" items={schedule.upcoming} status="upcoming"
-            color="#1D4ED8" bg="#eff6ff" icon="\U0001F4C5"
+            color="#1D4ED8" bg="#eff6ff" icon={"📅"}
           />
           <p style={{ fontSize: "11px", color: "#bbb", marginTop: "16px", lineHeight: 1.6 }}>
             This tool does not account for vaccines already given. Always verify the patient's immunisation history in AIR before administering. Tap any vaccine for full details.
@@ -1472,9 +1472,9 @@ export default function AustralianNIPSchedule() {
         overflowX: "auto", WebkitOverflowScrolling: "touch"
       }}>
         {navBtn("schedule", "Schedule by Age")}
+        {navBtn("patient", "My Patient")}
         {navBtn("reference", "Vaccine Reference")}
         {navBtn("faq", "FAQ")}
-        {navBtn("patient", "My Patient")}
       </nav>
 
       <main style={{ maxWidth: "860px", margin: "0 auto", padding: "32px 20px 80px" }}>
@@ -1663,8 +1663,11 @@ export default function AustralianNIPSchedule() {
             Australian Immunisation Handbook
           </a>{" "}(Jan 2026).
         </p>
-        <p style={{ margin: 0 }}>Built to support, not replace, clinical judgment. For informational purposes only.</p>
-        <p style={{ margin: "12px 0 0", fontWeight: 600, color: "#777" }}>Dr Marc Theilhaber · Dept of Respiratory Medicine · Monash Children's Hospital</p>
+        <p style={{ margin: "0 0 8px" }}>Built to support, not replace, clinical judgment. For informational purposes only.</p>
+        <p style={{ margin: 0, borderTop: "1px solid #eee", paddingTop: "10px", fontWeight: 600, color: "#777", lineHeight: 1.8 }}>
+          Dr Marc Theilhaber<br />
+          Dept of Respiratory Medicine · Monash Children's Hospital
+        </p>
       </footer>
 
       <Modal item={selectedItem} onClose={() => setSelectedItem(null)} />
