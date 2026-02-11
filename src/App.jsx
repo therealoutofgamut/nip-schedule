@@ -819,28 +819,6 @@ function CatchupSection({ stateFilter, setStateFilter }) {
         y += 4;
       }
 
-      if (result.notYetDue && result.notYetDue.length > 0) {
-        checkPage(14);
-        y += 2;
-        setFill("#888888"); doc.rect(ML, y, CW, 9, "F");
-        doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(255,255,255);
-        doc.text(`Not yet due (${result.notYetDue.length} series)`, ML+5, y+6.5);
-        y += 11;
-        result.notYetDue.forEach(s => {
-          checkPage(8);
-          const tc = TYPES[s.type].color;
-          const [tr,tg,tb] = hex2rgb(tc);
-          setFill("#F8F8F8"); doc.rect(ML, y, CW, 8, "F");
-          doc.setFillColor(tr,tg,tb); doc.rect(ML, y, 3, 8, "F");
-          doc.setFont("helvetica","bold"); doc.setFontSize(8.5); setTC("#333333");
-          doc.text(s.name, ML+7, y+5.5);
-          doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(136,136,136);
-          const dueStr = `Due from ${s.dueDate.toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"})} (${s.ageLabel})`;
-          doc.text(dueStr, ML+CW-2, y+5.5, { align: "right" });
-          y += 9;
-        });
-      }
-
       // Footer
       const H = 297; const footerY = H - 22;
       const pageCount = doc.getNumberOfPages();
