@@ -476,9 +476,10 @@ function calcCatchupSchedule(dobDate, seriesStates, stateFilter) {
   today.setHours(0, 0, 0, 0);
   const currentAgeWeeks = ageInWeeks(dobDate, today);
 
-  const visits = {}; // date ISO string → { date, vaccines[] }
+  const visits = {};
   const warnings = [];
   const complete = [];
+  const notYetDue = [];
 
   const addToVisit = (date, vaccine) => {
     const key = date.toISOString().slice(0, 10);
@@ -487,24 +488,35 @@ function calcCatchupSchedule(dobDate, seriesStates, stateFilter) {
   };
 
   CATCHUP_SERIES.forEach(series => {
-    // Hide HepA if state not eligible
     if (series.statesOnly && stateFilter !== "ALL" && !series.statesOnly.includes(stateFilter)) return;
 
     const state = seriesStates[series.id] || { dosesGiven: 0, lastDoseDate: null };
     const { dosesGiven } = state;
     const lastDoseDate = state.lastDoseDate ? new Date(state.lastDoseDate) : null;
 
-    // Determine age at first dose (approximate based on schedule if no lastDoseDate)
+    // KEY FIX: If the child hasn't started this series and hasn't yet reached the minimum
+    // age for the first dose, it's not behind — it's simply not due yet. Don't schedule years ahead.
+    if (dosesGiven === 0 && series.minAgeFirstDoseWeeks && currentAgeWeeks < series.minAgeFirstDoseWeeks) {
+      const dueDate = addWeeks(dobDate, series.minAgeFirstDoseWeeks);
+      notYetDue.push({
+        id: series.id,
+        name: series.name,
+        type: series.type,
+        brand: series.brand,
+        dueDate,
+        ageLabel: formatAgeAtVisit(dobDate, dueDate),
+      });
+      return;
+    }
+
     let ageAtFirstDoseWeeks;
     if (dosesGiven > 0 && lastDoseDate) {
-      // Approximate age at first dose
       const minInterv = (series.minIntervalWeeks || 4) * (dosesGiven - 1);
       ageAtFirstDoseWeeks = ageInWeeks(dobDate, lastDoseDate) - minInterv;
     } else {
       ageAtFirstDoseWeeks = currentAgeWeeks;
     }
 
-    // Compute required doses
     let requiredDoses = series.maxDoses || 1;
     if (series.ageDependentDoses) {
       if (series.id === "PCV") requiredDoses = getPCVRequiredDoses(dosesGiven === 0 ? currentAgeWeeks : ageAtFirstDoseWeeks);
@@ -512,7 +524,6 @@ function calcCatchupSchedule(dobDate, seriesStates, stateFilter) {
       if (series.id === "HPV") requiredDoses = getHPVRequiredDoses(dosesGiven === 0 ? currentAgeWeeks : ageAtFirstDoseWeeks);
     }
 
-    // Rotavirus hard cutoffs
     if (series.id === "Rota") {
       if (dosesGiven === 0 && currentAgeWeeks > series.hardCutoffDose1Weeks) {
         warnings.push({ id: series.id, name: series.name, type: "cutoff",
@@ -534,39 +545,28 @@ function calcCatchupSchedule(dobDate, seriesStates, stateFilter) {
       return;
     }
 
-    // Schedule remaining doses
     let prevDate = lastDoseDate || today;
 
     for (let i = dosesGiven; i < requiredDoses; i++) {
       let earliest = new Date(prevDate);
 
-      // Min interval from previous dose (if not the very first dose with no history)
       if (i > 0 || lastDoseDate) {
         const minAfterPrev = addWeeks(prevDate, series.minIntervalWeeks || 4);
         if (minAfterPrev > earliest) earliest = minAfterPrev;
       }
 
-      // HPV 3-dose: middle dose 4–8w after dose 1, final dose 6m after dose 1
       if (series.id === "HPV" && requiredDoses === 3) {
         if (i === 1) {
           const minD1 = lastDoseDate ? addWeeks(lastDoseDate, 4) : addWeeks(today, 4);
           if (minD1 > earliest) earliest = minD1;
         }
         if (i === 2) {
-          // 6 months from dose 1
           const dose1Date = lastDoseDate ? addWeeks(lastDoseDate, -(dosesGiven - 1) * 8) : today;
           const sixMonthsFromD1 = addWeeks(dose1Date, 24);
           if (sixMonthsFromD1 > earliest) earliest = sixMonthsFromD1;
         }
       }
 
-      // Min age for first dose
-      if (i === 0 && series.minAgeFirstDoseWeeks) {
-        const minAgeDate = addWeeks(dobDate, series.minAgeFirstDoseWeeks);
-        if (minAgeDate > earliest) earliest = minAgeDate;
-      }
-
-      // Rotavirus: don't schedule beyond cutoff
       if (series.id === "Rota") {
         const cutoff = addWeeks(dobDate, series.hardCutoffAllDosesWeeks);
         if (earliest >= cutoff) {
@@ -576,7 +576,6 @@ function calcCatchupSchedule(dobDate, seriesStates, stateFilter) {
         }
       }
 
-      // Can't be before today
       if (earliest < today) earliest = new Date(today);
 
       const isToday = earliest.toISOString().slice(0, 10) === today.toISOString().slice(0, 10);
@@ -590,17 +589,14 @@ function calcCatchupSchedule(dobDate, seriesStates, stateFilter) {
         type: series.type,
         route: series.route,
         isToday,
-        note: i === requiredDoses - 1 ? series.note : null,
       });
 
       prevDate = earliest;
     }
   });
 
-  const sortedVisits = Object.values(visits)
-    .sort((a, b) => a.date - b.date);
-
-  return { visits: sortedVisits, warnings, complete };
+  const sortedVisits = Object.values(visits).sort((a, b) => a.date - b.date);
+  return { visits: sortedVisits, warnings, complete, notYetDue };
 }
 
 function formatVisitDate(date) {
@@ -627,6 +623,8 @@ function CatchupSection({ stateFilter, setStateFilter }) {
   const [dob, setDob] = useState("");
   const [seriesStates, setSeriesStates] = useState({});
   const [showComplete, setShowComplete] = useState(false);
+  const [showNotYetDue, setShowNotYetDue] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const dobDate = useMemo(() => {
     if (!dob) return null;
@@ -651,7 +649,6 @@ function CatchupSection({ stateFilter, setStateFilter }) {
     : currentAgeWeeks < 100 ? `${Math.round(currentAgeWeeks / 4.33)} months`
     : `${Math.floor(currentAgeWeeks / 52)}y ${Math.floor((currentAgeWeeks % 52) / 4.33)}m`;
 
-  // Pill button for dose count
   const DosePills = ({ id, max }) => {
     const given = seriesStates[id]?.dosesGiven ?? 0;
     return (
@@ -670,7 +667,6 @@ function CatchupSection({ stateFilter, setStateFilter }) {
     );
   };
 
-  // How many doses to show in pills (series-aware)
   const getMaxForSeries = (series) => {
     if (!dobDate || !series.ageDependentDoses) return series.maxDoses || 2;
     const aw = currentAgeWeeks || 0;
@@ -680,6 +676,209 @@ function CatchupSection({ stateFilter, setStateFilter }) {
     return series.maxDoses || 2;
   };
 
+  // ── PDF generation ────────────────────────────────────────────────────────
+  const loadJsPDF = () => new Promise((resolve, reject) => {
+    if (window.jspdf) { resolve(window.jspdf); return; }
+    const script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+    script.onload = () => resolve(window.jspdf);
+    script.onerror = () => reject(new Error("Failed to load jsPDF"));
+    document.head.appendChild(script);
+  });
+
+  const generatePDF = async () => {
+    if (!dobDate || !result) return;
+    setPdfLoading(true);
+    try {
+      const jspdfModule = await loadJsPDF();
+      const { jsPDF } = jspdfModule;
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const W = 210; const ML = 18; const MR = 18; const CW = W - ML - MR;
+
+      const hex2rgb = h => [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)];
+      const setFill = hex => { const [r,g,b] = hex2rgb(hex); doc.setFillColor(r,g,b); };
+      const setStroke = hex => { const [r,g,b] = hex2rgb(hex); doc.setDrawColor(r,g,b); };
+      const setTC = hex => { const [r,g,b] = hex2rgb(hex); doc.setTextColor(r,g,b); };
+
+      const stateName = stateFilter === "ALL" ? "All states/territories" : STATES[stateFilter];
+      const todayStr = today.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
+
+      // Header
+      setFill("#1a1a2e"); doc.rect(0, 0, W, 42, "F");
+      setFill("#2d2b55"); doc.rect(0, 38, W, 4, "F");
+      doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(18);
+      doc.text("Catch-up Immunisation Schedule", ML, 16);
+      doc.setFontSize(11); doc.setFont("helvetica","normal");
+      doc.setTextColor(200,210,230); doc.text("National Immunisation Program \u00B7 Australia", ML, 23);
+      doc.setFontSize(8); doc.setTextColor(150,165,190);
+      doc.text(`Generated ${todayStr}`, W - MR, 16, { align: "right" });
+      doc.text("nip.terrific.website", W - MR, 21, { align: "right" });
+
+      // Patient card
+      setFill("#F4F6FB"); doc.roundedRect(ML, 48, CW, 22, 3, 3, "F");
+      setFill("#1a1a2e"); doc.rect(ML, 48, 4, 22, "F");
+      doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(136,136,136);
+      doc.text("DATE OF BIRTH", ML+10, 55);
+      doc.text("CURRENT AGE", ML+65, 55);
+      doc.text("STATE / TERRITORY", ML+120, 55);
+      doc.setFont("helvetica","bold"); doc.setFontSize(13); setTC("#1a1a2e");
+      doc.text(dobDate.toLocaleDateString("en-AU", { day:"numeric", month:"short", year:"numeric" }), ML+10, 64);
+      doc.text(ageLabel || "—", ML+65, 64);
+      doc.setFontSize(11); doc.text(stateName, ML+120, 64);
+
+      let y = 80;
+      const PAGE_BOTTOM = 272;
+      const ROW_H = 18;
+
+      const checkPage = (need) => { if (y + need > PAGE_BOTTOM) { doc.addPage(); y = 20; } };
+
+      const drawVisitHeader = (label, dateStr, ageStr, color) => {
+        checkPage(14);
+        const [r,g,b] = hex2rgb(color);
+        doc.setFillColor(r,g,b); doc.rect(ML, y, CW, 10, "F");
+        doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(255,255,255);
+        doc.text(label, ML+5, y+7);
+        doc.setFont("helvetica","normal"); doc.setFontSize(8);
+        doc.text(dateStr, ML+CW/2, y+7, { align: "center" });
+        doc.text(ageStr, ML+CW-2, y+7, { align: "right" });
+        y += 12;
+      };
+
+      const TYPE_LABELS = { routine:"NIP Routine", indigenous:"Aboriginal & TSI", "at-risk":"At-Risk", recommended:"Recommended", state:"State-funded" };
+
+      const drawVaccineRow = (vac) => {
+        checkPage(ROW_H);
+        const tc = TYPES[vac.type].color;
+        const [tr,tg,tb] = hex2rgb(tc);
+        setFill("#FAFAFA"); doc.rect(ML, y, CW, ROW_H, "F");
+        doc.setFillColor(tr,tg,tb); doc.rect(ML, y, 3, ROW_H, "F");
+        setStroke("#EEEEEE"); doc.setLineWidth(0.2); doc.line(ML+3, y+ROW_H, ML+CW, y+ROW_H);
+
+        doc.setFont("helvetica","bold"); doc.setFontSize(10); setTC("#1a1a2e");
+        doc.text(vac.name, ML+7, y+6.5);
+
+        const typeLabel = TYPE_LABELS[vac.type] || vac.type;
+        doc.setFontSize(7); doc.setFont("helvetica","bold");
+        const tlw = doc.getTextWidth(typeLabel);
+        doc.setFillColor(Math.min(255,tr+175), Math.min(255,tg+175), Math.min(255,tb+175));
+        doc.roundedRect(ML+7, y+8.5, tlw+5, 5, 1, 1, "F");
+        doc.setTextColor(tr,tg,tb); doc.text(typeLabel, ML+9.5, y+12.5);
+
+        doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(136,136,136);
+        doc.text(`${vac.brand} \u00B7 ${vac.route}`, ML+7, y+15.5);
+
+        doc.setFont("helvetica","bold"); doc.setFontSize(9); setTC("#1a1a2e");
+        doc.text(`Dose ${vac.doseNum}/${vac.totalDoses}`, ML+CW-2, y+8, { align: "right" });
+
+        y += ROW_H;
+      };
+
+      if (result.warnings.length > 0) {
+        checkPage(12);
+        setFill("#c0392b"); doc.rect(ML, y, CW, 9, "F");
+        doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(255,255,255);
+        doc.text("Warnings", ML+5, y+6.5);
+        y += 11;
+        result.warnings.forEach(w => {
+          checkPage(12);
+          setFill("#FFF5F5"); doc.rect(ML, y, CW, 11, "F");
+          doc.setFont("helvetica","bold"); doc.setFontSize(8); setTC("#c0392b");
+          doc.text(`${w.name}: `, ML+5, y+7.5);
+          doc.setFont("helvetica","normal");
+          doc.text(w.msg, ML+5+doc.getTextWidth(`${w.name}: `), y+7.5);
+          y += 13;
+        });
+      }
+
+      result.visits.forEach((visit, vi) => {
+        const isToday = visit.date.toISOString().slice(0,10) === today.toISOString().slice(0,10);
+        const dateStr = isToday ? "Today" : visit.date.toLocaleDateString("en-AU", { weekday:"short", day:"numeric", month:"short", year:"numeric" });
+        drawVisitHeader(
+          `Visit ${vi + 1}`,
+          dateStr,
+          formatAgeAtVisit(dobDate, visit.date),
+          isToday ? "#1a1a2e" : "#2d2b55"
+        );
+        visit.vaccines.forEach(drawVaccineRow);
+        y += 4;
+      });
+
+      if (result.complete.length > 0) {
+        checkPage(14);
+        y += 4;
+        setFill("#0D6E3F"); doc.rect(ML, y, CW, 9, "F");
+        doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(255,255,255);
+        doc.text(`Up to date (${result.complete.length} series)`, ML+5, y+6.5);
+        y += 11;
+        const names = result.complete.map(s => s.name).join("  \u2022  ");
+        doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(80,80,80);
+        const lines = doc.splitTextToSize(names, CW - 6);
+        lines.forEach(line => { checkPage(8); doc.text(line, ML+4, y+5); y += 7; });
+        y += 4;
+      }
+
+      if (result.notYetDue && result.notYetDue.length > 0) {
+        checkPage(14);
+        y += 2;
+        setFill("#888888"); doc.rect(ML, y, CW, 9, "F");
+        doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(255,255,255);
+        doc.text(`Not yet due (${result.notYetDue.length} series)`, ML+5, y+6.5);
+        y += 11;
+        result.notYetDue.forEach(s => {
+          checkPage(8);
+          const tc = TYPES[s.type].color;
+          const [tr,tg,tb] = hex2rgb(tc);
+          setFill("#F8F8F8"); doc.rect(ML, y, CW, 8, "F");
+          doc.setFillColor(tr,tg,tb); doc.rect(ML, y, 3, 8, "F");
+          doc.setFont("helvetica","bold"); doc.setFontSize(8.5); setTC("#333333");
+          doc.text(s.name, ML+7, y+5.5);
+          doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(136,136,136);
+          const dueStr = `Due from ${s.dueDate.toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"})} (${s.ageLabel})`;
+          doc.text(dueStr, ML+CW-2, y+5.5, { align: "right" });
+          y += 9;
+        });
+      }
+
+      // Footer
+      const H = 297; const footerY = H - 22;
+      const pageCount = doc.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        setStroke("#E0E0E0"); doc.setLineWidth(0.3); doc.line(ML, footerY-2, W-MR, footerY-2);
+        doc.setFont("helvetica","bold"); doc.setFontSize(7.5); setTC("#c0392b");
+        doc.text("Always verify immunisation history in AIR before administering.", ML, footerY+2);
+        doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(170,170,170);
+        doc.text(`Data: Australian Immunisation Handbook & NIP Schedule (Jan 2026)  \u00B7  nip.terrific.website`, ML, footerY+7);
+        doc.setFont("helvetica","italic"); doc.setFontSize(7); doc.setTextColor(187,187,187);
+        doc.text("Dr Marc Theilhaber \u00B7 Dept of Respiratory Medicine \u00B7 Monash Children\u2019s Hospital", ML, footerY+12);
+        doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(187,187,187);
+        doc.text(`Page ${i} of ${pageCount}`, W-MR, footerY+2, { align: "right" });
+      }
+
+      doc.save(`NIP-catchup-${dob.replace(/-/g,"")}.pdf`);
+    } catch (err) {
+      console.error("PDF error:", err);
+      alert("Could not generate PDF. Please check your internet connection.");
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+  // ── end PDF ───────────────────────────────────────────────────────────────
+
+  // Only show series that are relevant for the child's age
+  const relevantSeries = useMemo(() => {
+    if (!dobDate) return CATCHUP_SERIES;
+    return CATCHUP_SERIES.filter(series => {
+      if (series.statesOnly && stateFilter !== "ALL" && !series.statesOnly.includes(stateFilter)) return false;
+      // Show series if: already started, OR child has reached/passed the minimum age for it
+      const aw = currentAgeWeeks || 0;
+      const given = seriesStates[series.id]?.dosesGiven ?? 0;
+      if (given > 0) return true;
+      if (!series.minAgeFirstDoseWeeks) return true;
+      return aw >= series.minAgeFirstDoseWeeks;
+    });
+  }, [dobDate, currentAgeWeeks, stateFilter, seriesStates]);
+
   return (
     <section>
       <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: "26px", fontWeight: 400, margin: "0 0 6px" }}>
@@ -687,8 +886,8 @@ function CatchupSection({ stateFilter, setStateFilter }) {
       </h2>
       <p style={{ color: "#777", fontSize: "14px", margin: "0 0 24px", lineHeight: 1.6 }}>
         Enter the child's date of birth and how many doses of each vaccine they've received.
-        The calculator generates a catch-up schedule with minimum safe intervals.
-        Always verify against AIR — this tool does not access immunisation history.
+        The calculator generates a catch-up schedule with minimum safe intervals — only for vaccines the child is old enough to receive.
+        Always verify against AIR.
       </p>
 
       {/* DOB + State row */}
@@ -713,6 +912,28 @@ function CatchupSection({ stateFilter, setStateFilter }) {
               <div style={{ fontSize: "22px", fontWeight: 700, color: "#1a1a2e" }}>{ageLabel}</div>
             </div>
           )}
+          {/* PDF button — only show when there's something to print */}
+          {dobDate && result && (result.visits.length > 0 || result.complete.length > 0) && (
+            <div style={{ marginLeft: "auto" }}>
+              <button onClick={generatePDF} disabled={pdfLoading} style={{
+                display: "flex", alignItems: "center", gap: "8px",
+                padding: "10px 18px",
+                background: pdfLoading ? "#e8e8e8" : "linear-gradient(135deg, #1a1a2e 0%, #2d2b55 100%)",
+                color: pdfLoading ? "#999" : "#fff",
+                border: "none", borderRadius: "10px",
+                fontSize: "13px", fontWeight: 700, fontFamily: "inherit",
+                cursor: pdfLoading ? "not-allowed" : "pointer",
+                boxShadow: pdfLoading ? "none" : "0 4px 12px rgba(26,26,46,0.3)",
+                transition: "all 0.2s ease", whiteSpace: "nowrap",
+              }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                {pdfLoading ? "Generating..." : "Download PDF"}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -722,15 +943,13 @@ function CatchupSection({ stateFilter, setStateFilter }) {
         </div>
       ) : (
         <>
-          {/* Series cards */}
+          {/* Series cards — only age-appropriate ones */}
           <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#1a1a2e", margin: "0 0 12px" }}>Vaccines received</h3>
           <p style={{ fontSize: "13px", color: "#888", margin: "0 0 16px" }}>
-            Set doses to 0 if not yet started. Entering the date of the last dose gives more precise scheduling.
+            Only vaccines due at this child's age are shown. Set doses to 0 if not yet started.
           </p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "10px", marginBottom: "32px" }}>
-            {CATCHUP_SERIES.map(series => {
-              // Hide HepA if state not eligible
-              if (series.statesOnly && stateFilter !== "ALL" && !series.statesOnly.includes(stateFilter)) return null;
+            {relevantSeries.map(series => {
               const given = seriesStates[series.id]?.dosesGiven ?? 0;
               const lastDate = seriesStates[series.id]?.lastDoseDate || "";
               const maxPills = getMaxForSeries(series);
@@ -793,10 +1012,10 @@ function CatchupSection({ stateFilter, setStateFilter }) {
 
               {/* Visit timeline */}
               {result.visits.length === 0 && result.warnings.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "32px", background: "#f0faf4", borderRadius: "12px", border: "1px solid #b7e5c6" }}>
+                <div style={{ textAlign: "center", padding: "32px", background: "#f0faf4", borderRadius: "12px", border: "1px solid #b7e5c6", marginBottom: "16px" }}>
                   <div style={{ fontSize: "28px", marginBottom: "8px" }}>✓</div>
-                  <div style={{ fontSize: "16px", fontWeight: 700, color: "#0D6E3F" }}>Schedule complete</div>
-                  <div style={{ fontSize: "13px", color: "#555", marginTop: "4px" }}>All selected vaccines are up to date.</div>
+                  <div style={{ fontSize: "16px", fontWeight: 700, color: "#0D6E3F" }}>Up to date for age</div>
+                  <div style={{ fontSize: "13px", color: "#555", marginTop: "4px" }}>All age-appropriate vaccines are complete.</div>
                 </div>
               ) : result.visits.length > 0 ? (
                 <>
@@ -804,25 +1023,18 @@ function CatchupSection({ stateFilter, setStateFilter }) {
                     Catch-up schedule — {result.visits.length} {result.visits.length === 1 ? "visit" : "visits"} needed
                   </h3>
                   <div style={{ position: "relative" }}>
-                    {/* Vertical timeline line */}
                     <div style={{ position: "absolute", left: "19px", top: "28px", bottom: "28px", width: "2px", background: "#e0e4f0", zIndex: 0 }} />
                     {result.visits.map((visit, vi) => {
-                      const isFirst = vi === 0;
                       const isToday = visit.date.toISOString().slice(0,10) === today.toISOString().slice(0,10);
                       return (
                         <div key={vi} style={{ display: "flex", gap: "16px", marginBottom: "16px", position: "relative", zIndex: 1 }}>
-                          {/* Circle */}
                           <div style={{
                             width: "40px", height: "40px", borderRadius: "50%", flexShrink: 0,
                             background: isToday ? "#1a1a2e" : "#fff",
                             border: `2px solid ${isToday ? "#1a1a2e" : "#c0cce0"}`,
                             display: "flex", alignItems: "center", justifyContent: "center",
-                            fontSize: "13px", fontWeight: 700,
-                            color: isToday ? "#fff" : "#2d2b55",
-                          }}>
-                            {vi + 1}
-                          </div>
-                          {/* Card */}
+                            fontSize: "13px", fontWeight: 700, color: isToday ? "#fff" : "#2d2b55",
+                          }}>{vi + 1}</div>
                           <div style={{
                             flex: 1, background: "#fff", borderRadius: "10px",
                             border: `1px solid ${isToday ? "#2d2b55" : "#e8e8e8"}`,
@@ -872,33 +1084,62 @@ function CatchupSection({ stateFilter, setStateFilter }) {
                 </>
               ) : null}
 
-              {/* Complete series */}
-              {result.complete.length > 0 && (
-                <div style={{ marginTop: "20px" }}>
-                  <button onClick={() => setShowComplete(p => !p)} style={{
-                    background: "none", border: "none", cursor: "pointer", fontFamily: "inherit",
-                    fontSize: "13px", color: "#888", fontWeight: 600, padding: "0", display: "flex", alignItems: "center", gap: "6px",
-                  }}>
-                    <span style={{ transform: showComplete ? "rotate(90deg)" : "none", display: "inline-block", transition: "transform 0.2s", fontSize: "10px" }}>▶</span>
-                    {result.complete.length} series already complete
-                  </button>
-                  {showComplete && (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "10px" }}>
-                      {result.complete.map(s => (
-                        <span key={s.id} style={{
-                          fontSize: "12px", padding: "4px 12px", borderRadius: "16px",
-                          background: "#f0faf4", color: "#0D6E3F", border: "1px solid #b7e5c6", fontWeight: 600,
-                        }}>
-                          ✓ {s.name}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+              {/* Complete + not-yet-due disclosures */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "20px" }}>
+                {result.complete.length > 0 && (
+                  <div>
+                    <button onClick={() => setShowComplete(p => !p)} style={{
+                      background: "none", border: "none", cursor: "pointer", fontFamily: "inherit",
+                      fontSize: "13px", color: "#0D6E3F", fontWeight: 600, padding: "0", display: "flex", alignItems: "center", gap: "6px",
+                    }}>
+                      <span style={{ transform: showComplete ? "rotate(90deg)" : "none", display: "inline-block", transition: "transform 0.2s", fontSize: "10px" }}>▶</span>
+                      ✓ {result.complete.length} series up to date
+                    </button>
+                    {showComplete && (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "8px", paddingLeft: "18px" }}>
+                        {result.complete.map(s => (
+                          <span key={s.id} style={{ fontSize: "12px", padding: "4px 12px", borderRadius: "16px", background: "#f0faf4", color: "#0D6E3F", border: "1px solid #b7e5c6", fontWeight: 600 }}>
+                            ✓ {s.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {result.notYetDue && result.notYetDue.length > 0 && (
+                  <div>
+                    <button onClick={() => setShowNotYetDue(p => !p)} style={{
+                      background: "none", border: "none", cursor: "pointer", fontFamily: "inherit",
+                      fontSize: "13px", color: "#888", fontWeight: 600, padding: "0", display: "flex", alignItems: "center", gap: "6px",
+                    }}>
+                      <span style={{ transform: showNotYetDue ? "rotate(90deg)" : "none", display: "inline-block", transition: "transform 0.2s", fontSize: "10px" }}>▶</span>
+                      {result.notYetDue.length} series not yet due
+                    </button>
+                    {showNotYetDue && (
+                      <div style={{ marginTop: "8px", paddingLeft: "18px", display: "flex", flexDirection: "column", gap: "6px" }}>
+                        {result.notYetDue.map(s => {
+                          const t = TYPES[s.type];
+                          return (
+                            <div key={s.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", borderRadius: "8px", background: "#f8f8f8", border: "1px solid #eee" }}>
+                              <div>
+                                <span style={{ fontSize: "13px", fontWeight: 600, color: "#555" }}>{s.name}</span>
+                                <span style={{ fontSize: "11px", color: "#aaa", marginLeft: "8px" }}>{s.brand}</span>
+                              </div>
+                              <span style={{ fontSize: "11px", color: "#888", background: "#f0f0f0", padding: "3px 8px", borderRadius: "10px", fontWeight: 600, whiteSpace: "nowrap" }}>
+                                Due from {s.ageLabel}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
 
               <p style={{ fontSize: "11px", color: "#bbb", marginTop: "24px", lineHeight: 1.6 }}>
-                Always verify immunisation history in AIR before administering. Minimum intervals shown — longer intervals are equally valid. Consult the Australian Immunisation Handbook for complex catch-up scenarios including immunocompromised patients.
+                Minimum intervals shown — longer intervals are equally valid. Consult the Australian Immunisation Handbook for complex scenarios including immunocompromised patients.
               </p>
             </>
           )}
