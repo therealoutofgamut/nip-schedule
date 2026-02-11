@@ -670,11 +670,12 @@ function CatchupSection({ stateFilter, setStateFilter }) {
   };
 
   const getMaxForSeries = (series) => {
-    if (!dobDate || !series.ageDependentDoses) return series.maxDoses || 2;
-    const aw = currentAgeWeeks || 0;
-    if (series.id === "PCV") return getPCVRequiredDoses(aw);
-    if (series.id === "MenB") return getMenBRequiredDoses(aw);
-    if (series.id === "HPV") return getHPVRequiredDoses(aw);
+    // Controls the "doses already received" selector — should be the historical
+    // maximum for the full primary series, not doses remaining from current age.
+    if (series.id === "PCV") return 3;   // full primary series is always 3
+    if (series.id === "MenB") return 3;  // infant series max
+    if (series.id === "HPV") return 3;   // max for ≥15y or immunocompromised
+    if (!series.ageDependentDoses) return series.maxDoses || 2;
     return series.maxDoses || 2;
   };
 
