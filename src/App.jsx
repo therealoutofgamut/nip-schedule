@@ -855,6 +855,21 @@ function formatRelativeWeeks(weeks) {
   return `${(abs / 52).toFixed(1)} years`;
 }
 
+function formatNextDueTiming(weeksFromNow) {
+  if (weeksFromNow < 8) return `in ${Math.round(weeksFromNow)} weeks`;
+  if (weeksFromNow < 52) return `in ${Math.round(weeksFromNow / 4.33)} months`;
+  const totalMonths = Math.round(weeksFromNow / 4.33);
+  const years = Math.floor(totalMonths / 12);
+  const months = totalMonths % 12;
+  if (weeksFromNow < 104) {
+    // under 2 years: show years + months
+    if (months === 0) return `in ${years} year${years !== 1 ? "s" : ""}`;
+    return `in ${years} year${years !== 1 ? "s" : ""} ${months} month${months !== 1 ? "s" : ""}`;
+  }
+  // 2+ years: years only
+  return `in ${years} year${years !== 1 ? "s" : ""}`;
+}
+
 function formatDate(date) {
   return date.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
 }
@@ -1149,9 +1164,7 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
         doc.setFont("helvetica", "normal"); doc.setFontSize(8);
         setTextColor("#888888");
         const wfn = nextBeyond.weeksFromNow;
-        const timing = wfn < 20 ? `in ${Math.round(wfn)} weeks`
-          : wfn < 87 ? `in ${Math.round(wfn / 4.33)} months`
-          : `in ${(wfn / 52).toFixed(1)} years`;
+        const timing = formatNextDueTiming(wfn);
         doc.text(timing, ML + CW - 2, y + 15, { align: "right" });
 
         y += 24;
@@ -1392,9 +1405,7 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
         const nextBeyond = schedule.nextDue && schedule.nextDue.weeksFromNow > 8.7 ? schedule.nextDue : null;
         if (!nextBeyond) return null;
         const wfn = nextBeyond.weeksFromNow;
-        const timing = wfn < 20 ? `in ${Math.round(wfn)} weeks`
-          : wfn < 87 ? `in ${Math.round(wfn / 4.33)} months`
-          : `in ${(wfn / 52).toFixed(1)} years`;
+        const timing = formatNextDueTiming(wfn);
         return (
           <div style={{
             display: "flex", alignItems: "center", gap: "16px",
