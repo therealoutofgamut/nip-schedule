@@ -628,11 +628,48 @@ function formatAgeAtVisit(dobDate, visitDate) {
 }
 
 function CatchupSection({ stateFilter, setStateFilter }) {
-  const [dob, setDob] = useState("");
-  const [seriesStates, setSeriesStates] = useState({});
+  const [dob, setDob] = useState(() => {
+    try {
+      return sessionStorage.getItem("catchup_dob") || "";
+    } catch { return ""; }
+  });
+  const [seriesStates, setSeriesStates] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem("catchup_series");
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
   const [showComplete, setShowComplete] = useState(false);
   const [showNotYetDue, setShowNotYetDue] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+
+  // Persist dob to sessionStorage
+  useEffect(() => {
+    try {
+      if (dob) sessionStorage.setItem("catchup_dob", dob);
+      else sessionStorage.removeItem("catchup_dob");
+    } catch {}
+  }, [dob]);
+
+  // Persist seriesStates to sessionStorage
+  useEffect(() => {
+    try {
+      if (Object.keys(seriesStates).length > 0) {
+        sessionStorage.setItem("catchup_series", JSON.stringify(seriesStates));
+      } else {
+        sessionStorage.removeItem("catchup_series");
+      }
+    } catch {}
+  }, [seriesStates]);
+
+  const resetAll = () => {
+    setDob("");
+    setSeriesStates({});
+    try {
+      sessionStorage.removeItem("catchup_dob");
+      sessionStorage.removeItem("catchup_series");
+    } catch {}
+  };
 
   const dobDate = useMemo(() => {
     if (!dob) return null;
@@ -905,26 +942,46 @@ function CatchupSection({ stateFilter, setStateFilter }) {
               <div style={{ fontSize: "22px", fontWeight: 700, color: "#1a1a2e" }}>{ageLabel}</div>
             </div>
           )}
-          {/* PDF button — only show when there's something to print */}
-          {dobDate && result && (result.visits.length > 0 || result.complete.length > 0) && (
-            <div style={{ marginLeft: "auto" }}>
-              <button onClick={generatePDF} disabled={pdfLoading} style={{
-                display: "flex", alignItems: "center", gap: "8px",
-                padding: "10px 18px",
-                background: pdfLoading ? "#e8e8e8" : "linear-gradient(135deg, #1a1a2e 0%, #2d2b55 100%)",
-                color: pdfLoading ? "#999" : "#fff",
-                border: "none", borderRadius: "10px",
-                fontSize: "13px", fontWeight: 700, fontFamily: "inherit",
-                cursor: pdfLoading ? "not-allowed" : "pointer",
-                boxShadow: pdfLoading ? "none" : "0 4px 12px rgba(26,26,46,0.3)",
-                transition: "all 0.2s ease", whiteSpace: "nowrap",
-              }}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                  <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-                </svg>
-                {pdfLoading ? "Generating..." : "Download PDF"}
+          {/* Action buttons row — show when there's any data */}
+          {(dob || Object.keys(seriesStates).length > 0) && (
+            <div style={{ marginLeft: "auto", display: "flex", gap: "10px", alignItems: "center" }}>
+              {/* Reset button */}
+              <button onClick={resetAll} style={{
+                padding: "10px 16px",
+                background: "transparent",
+                color: "#999",
+                border: "1px solid #d0d0d0",
+                borderRadius: "8px",
+                fontSize: "13px", fontWeight: 600, fontFamily: "inherit",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+                whiteSpace: "nowrap",
+              }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "#c0392b"; e.currentTarget.style.color = "#c0392b"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "#d0d0d0"; e.currentTarget.style.color = "#999"; }}
+              >
+                Reset
               </button>
+              {/* PDF button — only show when there's something to print */}
+              {dobDate && result && (result.visits.length > 0 || result.complete.length > 0) && (
+                <button onClick={generatePDF} disabled={pdfLoading} style={{
+                  display: "flex", alignItems: "center", gap: "8px",
+                  padding: "10px 18px",
+                  background: pdfLoading ? "#e8e8e8" : "linear-gradient(135deg, #1a1a2e 0%, #2d2b55 100%)",
+                  color: pdfLoading ? "#999" : "#fff",
+                  border: "none", borderRadius: "10px",
+                  fontSize: "13px", fontWeight: 700, fontFamily: "inherit",
+                  cursor: pdfLoading ? "not-allowed" : "pointer",
+                  boxShadow: pdfLoading ? "none" : "0 4px 12px rgba(26,26,46,0.3)",
+                  transition: "all 0.2s ease", whiteSpace: "nowrap",
+                }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  {pdfLoading ? "Generating..." : "Download PDF"}
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -1714,10 +1771,22 @@ function formatAgeAtDate(dobDate, targetDate) {
 }
 
 function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
-  const [dob, setDob] = useState("");
+  const [dob, setDob] = useState(() => {
+    try {
+      return sessionStorage.getItem("patient_dob") || "";
+    } catch { return ""; }
+  });
   const [pdfLoading, setPdfLoading] = useState(false);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+
+  // Persist dob to sessionStorage
+  useEffect(() => {
+    try {
+      if (dob) sessionStorage.setItem("patient_dob", dob);
+      else sessionStorage.removeItem("patient_dob");
+    } catch {}
+  }, [dob]);
 
   const dobDate = useMemo(() => {
     if (!dob) return null;
