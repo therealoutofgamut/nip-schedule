@@ -1123,7 +1123,7 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
 
       // ── FOOTER ───────────────────────────────────────────────────────
       // Footer on last page
-      const footerY = H - 16;
+      const footerY = H - 22;
       setStroke("#E0E0E0");
       doc.setLineWidth(0.3);
       doc.line(ML, footerY - 2, W - MR, footerY - 2);
@@ -1132,9 +1132,13 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
       setTextColor("#c0392b");
       doc.text("Always verify immunisation history in AIR before administering.", ML, footerY + 2);
 
-      doc.setFont("helvetica", "normal");
+      doc.setFont("helvetica", "normal"); doc.setFontSize(7);
       setTextColor("#AAAAAA");
       doc.text(`Data source: Australian Immunisation Handbook & NIP Schedule (Jan 2026)  \u00B7  nip.terrific.website`, ML, footerY + 7);
+
+      doc.setFont("helvetica", "italic"); doc.setFontSize(7);
+      setTextColor("#BBBBBB");
+      doc.text("Dr Marc Theilhaber \u00B7 Dept of Respiratory Medicine \u00B7 Monash Children's Hospital", ML, footerY + 12);
 
       // Page numbers on all pages
       const pageCount = doc.getNumberOfPages();
@@ -1144,12 +1148,6 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
         setTextColor("#BBBBBB");
         doc.text(`Page ${i} of ${pageCount}`, W - MR, footerY + 2, { align: "right" });
       }
-
-      // Attribution on last page
-      doc.setPage(pageCount);
-      doc.setFont("helvetica", "italic"); doc.setFontSize(7);
-      setTextColor("#CCCCCC");
-      doc.text("Dr Marc Theilhaber \u00B7 Dept of Respiratory Medicine \u00B7 Monash Children's Hospital", W - MR, footerY + 7, { align: "right" });
 
       // Save
       const safeDob = dob.replace(/-/g, "");
