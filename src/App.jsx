@@ -1,4 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
+import { Analytics } from "@vercel/analytics/react";
 
 const SCHEDULE_DATA = [
   // Birth
@@ -855,21 +857,6 @@ function formatRelativeWeeks(weeks) {
   return `${(abs / 52).toFixed(1)} years`;
 }
 
-function formatNextDueTiming(weeksFromNow) {
-  if (weeksFromNow < 8) return `in ${Math.round(weeksFromNow)} weeks`;
-  if (weeksFromNow < 52) return `in ${Math.round(weeksFromNow / 4.33)} months`;
-  const totalMonths = Math.round(weeksFromNow / 4.33);
-  const years = Math.floor(totalMonths / 12);
-  const months = totalMonths % 12;
-  if (weeksFromNow < 104) {
-    // under 2 years: show years + months
-    if (months === 0) return `in ${years} year${years !== 1 ? "s" : ""}`;
-    return `in ${years} year${years !== 1 ? "s" : ""} ${months} month${months !== 1 ? "s" : ""}`;
-  }
-  // 2+ years: years only
-  return `in ${years} year${years !== 1 ? "s" : ""}`;
-}
-
 function formatDate(date) {
   return date.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
 }
@@ -1164,7 +1151,9 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
         doc.setFont("helvetica", "normal"); doc.setFontSize(8);
         setTextColor("#888888");
         const wfn = nextBeyond.weeksFromNow;
-        const timing = formatNextDueTiming(wfn);
+        const timing = wfn < 20 ? `in ${Math.round(wfn)} weeks`
+          : wfn < 87 ? `in ${Math.round(wfn / 4.33)} months`
+          : `in ${(wfn / 52).toFixed(1)} years`;
         doc.text(timing, ML + CW - 2, y + 15, { align: "right" });
 
         y += 24;
@@ -1333,7 +1322,7 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
               </div>
             </div>
           )}
-          {dobDate && (
+          {dobDate && totalCount > 0 && (
             <div style={{ marginLeft: "auto", display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" }}>
               {schedule.overdue.length > 0 && (
                 <div style={{ textAlign: "center", background: "#fff0f0", borderRadius: "8px", padding: "8px 14px" }}>
@@ -1398,49 +1387,47 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
             title="Due in next 2 months" items={schedule.upcoming} status="upcoming"
             color="#1D4ED8" bg="#eff6ff" icon={"📅"}
           />
+          {(() => {
+            const nextBeyond = schedule.nextDue && schedule.nextDue.weeksFromNow > 8.7 ? schedule.nextDue : null;
+            if (!nextBeyond) return null;
+            const wfn = nextBeyond.weeksFromNow;
+            const timing = wfn < 20 ? `in ${Math.round(wfn)} weeks`
+              : wfn < 87 ? `in ${Math.round(wfn / 4.33)} months`
+              : `in ${(wfn / 52).toFixed(1)} years`;
+            return (
+              <div style={{
+                display: "flex", alignItems: "center", gap: "16px",
+                background: "#fff", borderRadius: "10px",
+                border: "1px solid #e0e4f0",
+                borderLeft: "4px solid #2d2b55",
+                padding: "14px 18px", marginBottom: "20px",
+              }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: "10px", fontWeight: 700, color: "#999", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>
+                    Next vaccine due
+                  </div>
+                  <div style={{ fontSize: "15px", fontWeight: 700, color: "#1a1a2e" }}>
+                    {nextBeyond.vaccine}
+                  </div>
+                  <div style={{ fontSize: "12px", color: "#888", marginTop: "2px" }}>
+                    {nextBeyond.brand} · {nextBeyond.route}
+                  </div>
+                </div>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ fontSize: "15px", fontWeight: 700, color: "#2d2b55" }}>
+                    {formatDate(nextBeyond.dueDate)}
+                  </div>
+                  <div style={{ fontSize: "12px", color: "#888", marginTop: "2px" }}>
+                    {timing}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+          <p style={{ fontSize: "11px", color: "#bbb", marginTop: "16px", lineHeight: 1.6 }}>
+            This tool does not account for vaccines already given. Always verify the patient's immunisation history in AIR before administering. Tap any vaccine for full details.
+          </p>
         </>
-      )}
-
-      {dobDate && (() => {
-        const nextBeyond = schedule.nextDue && schedule.nextDue.weeksFromNow > 8.7 ? schedule.nextDue : null;
-        if (!nextBeyond) return null;
-        const wfn = nextBeyond.weeksFromNow;
-        const timing = formatNextDueTiming(wfn);
-        return (
-          <div style={{
-            display: "flex", alignItems: "center", gap: "16px",
-            background: "#fff", borderRadius: "10px",
-            border: "1px solid #e0e4f0",
-            borderLeft: "4px solid #2d2b55",
-            padding: "14px 18px", marginBottom: "20px",
-          }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: "10px", fontWeight: 700, color: "#999", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>
-                Next vaccine due
-              </div>
-              <div style={{ fontSize: "15px", fontWeight: 700, color: "#1a1a2e" }}>
-                {nextBeyond.vaccine}
-              </div>
-              <div style={{ fontSize: "12px", color: "#888", marginTop: "2px" }}>
-                {nextBeyond.brand} · {nextBeyond.route}
-              </div>
-            </div>
-            <div style={{ textAlign: "right", flexShrink: 0 }}>
-              <div style={{ fontSize: "15px", fontWeight: 700, color: "#2d2b55" }}>
-                {formatDate(nextBeyond.dueDate)}
-              </div>
-              <div style={{ fontSize: "12px", color: "#888", marginTop: "2px" }}>
-                {timing}
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
-      {dobDate && (
-        <p style={{ fontSize: "11px", color: "#bbb", marginTop: "8px", lineHeight: 1.6 }}>
-          This tool does not account for vaccines already given. Always verify the patient's immunisation history in AIR before administering. Tap any vaccine for full details.
-        </p>
       )}
     </section>
   );
@@ -1453,6 +1440,7 @@ export default function AustralianNIPSchedule() {
   const [activeSection, setActiveSection] = useState("schedule");
   const [selectedItem, setSelectedItem] = useState(null);
   const [viewMode, setViewMode] = useState("combo"); // "combo" or "components"
+  const [openAgeGroups, setOpenAgeGroups] = useState(null); // null = all open
 
   const filtered = useMemo(() => {
     const source = viewMode === "components" ? expandScheduleData(SCHEDULE_DATA) : SCHEDULE_DATA;
@@ -1694,18 +1682,71 @@ export default function AustralianNIPSchedule() {
               <p style={{ color: "#999", fontSize: "14px", padding: "32px 0", textAlign: "center" }}>No vaccines match your current filters.</p>
             )}
 
-            {grouped.map(([age, items]) => (
-              <div key={age} style={{ marginBottom: "28px" }}>
-                <h3 style={{
-                  fontSize: "16px", fontWeight: 700, color: "#1a1a2e",
-                  margin: "0 0 10px", padding: "0 0 8px",
-                  borderBottom: "2px solid #2d2b55", display: "inline-block"
-                }}>{age}</h3>
-                {items.map((item, i) => (
-                  <VaccineCard key={i} item={item} onClick={setSelectedItem} selectedState={stateFilter} />
-                ))}
-              </div>
-            ))}
+            {grouped.map(([age, items]) => {
+              const isOpen = openAgeGroups === null || openAgeGroups.has(age);
+              const toggle = () => setOpenAgeGroups(prev => {
+                // First toggle: build explicit set from all current ages
+                const allAges = new Set(grouped.map(([a]) => a));
+                const current = prev === null ? allAges : new Set(prev);
+                if (current.has(age)) current.delete(age);
+                else current.add(age);
+                return current;
+              });
+              // Count funded vs total for badge
+              const fundedCount = items.filter(it => {
+                const { type, shortName } = it;
+                return isFundedInState(it, stateFilter);
+              }).length;
+              return (
+                <div key={age} style={{ marginBottom: "6px" }}>
+                  <button
+                    onClick={toggle}
+                    style={{
+                      width: "100%", textAlign: "left", background: "none", border: "none",
+                      padding: "0", cursor: "pointer", fontFamily: "inherit",
+                      display: "flex", alignItems: "center", gap: "10px",
+                      marginBottom: isOpen ? "10px" : "2px",
+                    }}
+                  >
+                    {/* Chevron */}
+                    <svg
+                      width="16" height="16" viewBox="0 0 16 16"
+                      style={{
+                        flexShrink: 0,
+                        transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
+                        transition: "transform 0.2s ease",
+                        color: "#2d2b55",
+                      }}
+                      fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                    >
+                      <polyline points="6 4 10 8 6 12" />
+                    </svg>
+                    {/* Age label */}
+                    <span style={{
+                      fontSize: "16px", fontWeight: 700, color: "#1a1a2e",
+                      borderBottom: isOpen ? "2px solid #2d2b55" : "2px solid transparent",
+                      paddingBottom: "4px", transition: "border-color 0.2s ease",
+                    }}>{age}</span>
+                    {/* Item count pill */}
+                    <span style={{
+                      fontSize: "11px", fontWeight: 700,
+                      background: isOpen ? "#2d2b55" : "#e8e8e8",
+                      color: isOpen ? "#fff" : "#888",
+                      padding: "2px 7px", borderRadius: "10px",
+                      transition: "all 0.2s ease",
+                      marginLeft: "2px",
+                    }}>{items.length}</span>
+                  </button>
+                  {isOpen && (
+                    <div style={{ marginBottom: "22px" }}>
+                      {items.map((item, i) => (
+                        <VaccineCard key={i} item={item} onClick={setSelectedItem} selectedState={stateFilter} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </section>
         )}
 
@@ -1757,6 +1798,8 @@ export default function AustralianNIPSchedule() {
       </footer>
 
       <Modal item={selectedItem} onClose={() => setSelectedItem(null)} />
+      <SpeedInsights />
+      <Analytics />
     </div>
   );
 }
