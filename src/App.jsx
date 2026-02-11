@@ -329,6 +329,7 @@ const CATCHUP_SERIES = [
     maxDoses: 3,
     minIntervalWeeks: 4,
     minAgeFirstDoseWeeks: 6,
+    routineAges: [6, 16, 24], // 6w, 4m, 6m
     note: "Complete all 3 doses regardless of age at presentation. Min 4 weeks between doses.",
     boosterNote: "DTPa booster needed at 18m (if ≥6m since dose 3). DTPa-IPV pre-school booster at 4y.",
   },
@@ -342,6 +343,7 @@ const CATCHUP_SERIES = [
     ageDependentDoses: true, // computed at runtime
     minIntervalWeeks: 8,
     minAgeFirstDoseWeeks: 6,
+    routineAges: [6, 16, 48], // 6w, 4m, 12m (booster)
     note: "Doses depend on age at first presentation. Min 8 weeks between doses in catch-up. ATSI and at-risk children <7m need 4 doses (add 1).",
   },
   {
@@ -354,6 +356,7 @@ const CATCHUP_SERIES = [
     maxDoses: 2,
     minIntervalWeeks: 4,
     minAgeFirstDoseWeeks: 6,
+    routineAges: [6, 16], // 6w, 4m
     hardCutoffDose1Weeks: 14 + 6/7, // 14w 6d
     hardCutoffAllDosesWeeks: 24,
     note: "STRICT AGE LIMITS: Dose 1 must be given by 14 weeks 6 days. All doses must complete by 24 weeks.",
@@ -369,6 +372,7 @@ const CATCHUP_SERIES = [
     maxDoses: 2,
     minIntervalWeeks: 4,
     minAgeFirstDoseWeeks: 48, // 12 months
+    routineAges: [48, 72], // 12m, 18m
     note: "Dose 1 from 12 months. Dose 2 ideally at 18m as MMRV (adds varicella). Min 4 weeks between doses.",
   },
   {
@@ -381,6 +385,7 @@ const CATCHUP_SERIES = [
     maxDoses: 2,
     minIntervalWeeks: 4,
     minAgeFirstDoseWeeks: 48,
+    routineAges: [72, 76], // 18m for dose 1 (MMRV), 18m+ for dose 2
     note: "2nd dose recommended but not NIP-funded. Min 4 weeks after first dose (usually given as MMRV at 18m).",
   },
   {
@@ -392,6 +397,7 @@ const CATCHUP_SERIES = [
     route: "IM",
     maxDoses: 1,
     minAgeFirstDoseWeeks: 48,
+    routineAges: [48], // 12m
     note: "Single catch-up dose if 12m dose missed. Separate Year 10 school dose is routine.",
   },
   {
@@ -404,6 +410,7 @@ const CATCHUP_SERIES = [
     maxDoses: 3, // infant series; adolescents need only 2
     minIntervalWeeks: 8,
     minAgeFirstDoseWeeks: 6,
+    routineAges: [6, 16, 48], // 6w, 4m, 12m (ATSI schedule)
     ageDependentDoses: true,
     note: "Infant series (< 2y): 3 doses. Adolescents 15–19y: 2 doses ≥8 weeks apart. Not NIP-funded except ATSI and some states.",
   },
@@ -417,6 +424,7 @@ const CATCHUP_SERIES = [
     maxDoses: 2,
     minIntervalWeeks: 24, // 6 months
     minAgeFirstDoseWeeks: 72, // 18 months
+    routineAges: [72, 192], // 18m, 4y
     statesOnly: ["QLD","NT","SA","WA"],
     note: "ATSI children in QLD, NT, SA, WA only. 2 doses at least 6 months apart.",
   },
@@ -430,6 +438,7 @@ const CATCHUP_SERIES = [
     ageDependentDoses: true,
     minIntervalWeeks: 24, // 6 months (2-dose schedule)
     minAgeFirstDoseWeeks: 468, // ~10.8y — Year 7 context
+    routineAges: [576, 600], // Year 7, 6 months later
     note: "< 15y at first dose: 2 doses min 6 months apart. ≥ 15y or immunocompromised: 3 doses (0, 4–8w, 6m). Funded to age 25 for catch-up.",
   },
   {
@@ -441,6 +450,7 @@ const CATCHUP_SERIES = [
     route: "IM",
     maxDoses: 1,
     minAgeFirstDoseWeeks: 468, // Year 7
+    routineAges: [576], // Year 7
     note: "Single adolescent booster (Year 7 school program). Separate to pregnancy dTpa.",
   },
 ];
@@ -557,6 +567,12 @@ function calcCatchupSchedule(dobDate, seriesStates, stateFilter) {
         if (minAfterPrev > earliest) earliest = minAfterPrev;
       }
 
+      // Enforce routine schedule ages — don't give dose i before the routine schedule would
+      if (series.routineAges && series.routineAges[i] !== undefined) {
+        const routineMinAge = addWeeks(dobDate, series.routineAges[i]);
+        if (routineMinAge > earliest) earliest = routineMinAge;
+      }
+
       if (series.id === "HPV" && requiredDoses === 3) {
         if (i === 1) {
           const minD1 = lastDoseDate ? addWeeks(lastDoseDate, 4) : addWeeks(today, 4);
@@ -567,12 +583,6 @@ function calcCatchupSchedule(dobDate, seriesStates, stateFilter) {
           const sixMonthsFromD1 = addWeeks(dose1Date, 24);
           if (sixMonthsFromD1 > earliest) earliest = sixMonthsFromD1;
         }
-      }
-
-      // PCV and MenB: 3-dose infant series is 2 primary + 1 booster at 12 months
-      if ((series.id === "PCV" || series.id === "MenB") && requiredDoses === 3 && i === 2) {
-        const boosterMinAge = addWeeks(dobDate, 48); // 12 months
-        if (boosterMinAge > earliest) earliest = boosterMinAge;
       }
 
       if (series.id === "Rota") {
