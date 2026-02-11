@@ -1320,7 +1320,7 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
               </div>
             </div>
           )}
-          {dobDate && totalCount > 0 && (
+          {dobDate && (
             <div style={{ marginLeft: "auto", display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" }}>
               {schedule.overdue.length > 0 && (
                 <div style={{ textAlign: "center", background: "#fff0f0", borderRadius: "8px", padding: "8px 14px" }}>
@@ -1385,47 +1385,51 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
             title="Due in next 2 months" items={schedule.upcoming} status="upcoming"
             color="#1D4ED8" bg="#eff6ff" icon={"📅"}
           />
-          {(() => {
-            const nextBeyond = schedule.nextDue && schedule.nextDue.weeksFromNow > 8.7 ? schedule.nextDue : null;
-            if (!nextBeyond) return null;
-            const wfn = nextBeyond.weeksFromNow;
-            const timing = wfn < 20 ? `in ${Math.round(wfn)} weeks`
-              : wfn < 87 ? `in ${Math.round(wfn / 4.33)} months`
-              : `in ${(wfn / 52).toFixed(1)} years`;
-            return (
-              <div style={{
-                display: "flex", alignItems: "center", gap: "16px",
-                background: "#fff", borderRadius: "10px",
-                border: "1px solid #e0e4f0",
-                borderLeft: "4px solid #2d2b55",
-                padding: "14px 18px", marginBottom: "20px",
-              }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: "10px", fontWeight: 700, color: "#999", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>
-                    Next vaccine due
-                  </div>
-                  <div style={{ fontSize: "15px", fontWeight: 700, color: "#1a1a2e" }}>
-                    {nextBeyond.vaccine}
-                  </div>
-                  <div style={{ fontSize: "12px", color: "#888", marginTop: "2px" }}>
-                    {nextBeyond.brand} · {nextBeyond.route}
-                  </div>
-                </div>
-                <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div style={{ fontSize: "15px", fontWeight: 700, color: "#2d2b55" }}>
-                    {formatDate(nextBeyond.dueDate)}
-                  </div>
-                  <div style={{ fontSize: "12px", color: "#888", marginTop: "2px" }}>
-                    {timing}
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
-          <p style={{ fontSize: "11px", color: "#bbb", marginTop: "16px", lineHeight: 1.6 }}>
-            This tool does not account for vaccines already given. Always verify the patient's immunisation history in AIR before administering. Tap any vaccine for full details.
-          </p>
         </>
+      )}
+
+      {dobDate && (() => {
+        const nextBeyond = schedule.nextDue && schedule.nextDue.weeksFromNow > 8.7 ? schedule.nextDue : null;
+        if (!nextBeyond) return null;
+        const wfn = nextBeyond.weeksFromNow;
+        const timing = wfn < 20 ? `in ${Math.round(wfn)} weeks`
+          : wfn < 87 ? `in ${Math.round(wfn / 4.33)} months`
+          : `in ${(wfn / 52).toFixed(1)} years`;
+        return (
+          <div style={{
+            display: "flex", alignItems: "center", gap: "16px",
+            background: "#fff", borderRadius: "10px",
+            border: "1px solid #e0e4f0",
+            borderLeft: "4px solid #2d2b55",
+            padding: "14px 18px", marginBottom: "20px",
+          }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: "10px", fontWeight: 700, color: "#999", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>
+                Next vaccine due
+              </div>
+              <div style={{ fontSize: "15px", fontWeight: 700, color: "#1a1a2e" }}>
+                {nextBeyond.vaccine}
+              </div>
+              <div style={{ fontSize: "12px", color: "#888", marginTop: "2px" }}>
+                {nextBeyond.brand} · {nextBeyond.route}
+              </div>
+            </div>
+            <div style={{ textAlign: "right", flexShrink: 0 }}>
+              <div style={{ fontSize: "15px", fontWeight: 700, color: "#2d2b55" }}>
+                {formatDate(nextBeyond.dueDate)}
+              </div>
+              <div style={{ fontSize: "12px", color: "#888", marginTop: "2px" }}>
+                {timing}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {dobDate && (
+        <p style={{ fontSize: "11px", color: "#bbb", marginTop: "8px", lineHeight: 1.6 }}>
+          This tool does not account for vaccines already given. Always verify the patient's immunisation history in AIR before administering. Tap any vaccine for full details.
+        </p>
       )}
     </section>
   );
