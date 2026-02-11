@@ -603,11 +603,11 @@ function calcCatchupSchedule(dobDate, seriesStates, stateFilter) {
 
 function formatVisitDate(date) {
   const today = new Date(); today.setHours(0,0,0,0);
-  const diff = Math.round((date - today) / (7 * 24 * 60 * 60 * 1000));
-  if (diff === 0) return "Today";
-  if (diff === 1) return "Tomorrow";
-  if (diff < 8) return `In ${diff} days`;
-  if (diff < 60) return `In ${Math.round(diff / 7)} weeks`;
+  const diffDays = Math.round((date - today) / (24 * 60 * 60 * 1000));
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Tomorrow";
+  if (diffDays < 14) return `In ${diffDays} days`;
+  if (diffDays < 84) return `In ${Math.round(diffDays / 7)} weeks`;
   return date.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
 }
 
@@ -670,13 +670,19 @@ function CatchupSection({ stateFilter, setStateFilter }) {
   };
 
   const getMaxForSeries = (series) => {
-    // Controls the "doses already received" selector — should be the historical
-    // maximum for the full primary series, not doses remaining from current age.
-    if (series.id === "PCV") return 3;   // full primary series is always 3
-    if (series.id === "MenB") return 3;  // infant series max
-    if (series.id === "HPV") return 3;   // max for ≥15y or immunocompromised
-    if (!series.ageDependentDoses) return series.maxDoses || 2;
-    return series.maxDoses || 2;
+    const aw = currentAgeWeeks || 0;
+    const minStart = series.minAgeFirstDoseWeeks || 0;
+    if (aw < minStart) return 0;
+    // Max doses the child could plausibly have received by current age,
+    // using minimum intervals as the baseline (most aggressive schedule).
+    const interval = series.minIntervalWeeks || 4;
+    const possibleByAge = Math.floor((aw - minStart) / interval) + 1;
+    // Hard cap at the series maximum
+    const seriesMax = series.id === "PCV" ? 3
+      : series.id === "MenB" ? 3
+      : series.id === "HPV" ? 3
+      : (series.maxDoses || 2);
+    return Math.min(possibleByAge, seriesMax);
   };
 
   // ── PDF generation ────────────────────────────────────────────────────────
