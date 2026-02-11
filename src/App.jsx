@@ -483,6 +483,16 @@ function getHPVRequiredDoses(ageWeeksAtFirst) {
   return ageWeeksAtFirst < 15 * 52 ? 2 : 3;
 }
 
+function getRequiredDosesForSeries(series, ageWeeks, dosesGiven, state) {
+  if (series.ageDependentDoses) {
+    const ageAtFirstDose = dosesGiven === 0 ? ageWeeks : (state?.ageAtFirstDose || ageWeeks);
+    if (series.id === "PCV") return getPCVRequiredDoses(ageAtFirstDose);
+    if (series.id === "MenB") return getMenBRequiredDoses(ageAtFirstDose);
+    if (series.id === "HPV") return getHPVRequiredDoses(ageAtFirstDose);
+  }
+  return series.maxDoses;
+}
+
 function calcCatchupSchedule(dobDate, seriesStates, stateFilter) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -611,6 +621,46 @@ function calcCatchupSchedule(dobDate, seriesStates, stateFilter) {
 
       prevDate = earliest;
     }
+  });
+
+  // After scheduling catch-up doses, add any vaccines that become newly due at visit ages
+  // (e.g., MMR and MenACWY at 12 months)
+  const visitDates = Object.keys(visits).map(k => new Date(k));
+  visitDates.forEach(visitDate => {
+    const ageAtVisit = ageInWeeks(dobDate, visitDate);
+    
+    CATCHUP_SERIES.forEach(series => {
+      // Skip if already scheduled for this visit
+      const visitKey = visitDate.toISOString().slice(0, 10);
+      const alreadyScheduled = visits[visitKey]?.vaccines.some(d => d.seriesId === series.id);
+      if (alreadyScheduled) return;
+      
+      // Skip if series already complete
+      const st = seriesStates[series.id];
+      const dosesGiven = st?.dosesGiven || 0;
+      const requiredDoses = getRequiredDosesForSeries(series, ageAtVisit, dosesGiven, st);
+      if (dosesGiven >= requiredDoses) return;
+      
+      // Check if this vaccine becomes newly due at this age (not overdue, just due)
+      const minAge = series.minAgeFirstDoseWeeks;
+      if (ageAtVisit >= minAge && ageAtVisit < minAge + 8) { // within 8 weeks of becoming due
+        // This is a newly-due vaccine at this visit - add dose 1
+        if (dosesGiven === 0) {
+          const isToday = visitDate.toISOString().slice(0, 10) === today.toISOString().slice(0, 10);
+          addToVisit(visitDate, {
+            seriesId: series.id,
+            name: series.name,
+            brand: series.brand,
+            doseNum: 1,
+            totalDoses: requiredDoses,
+            type: series.type,
+            route: series.route,
+            isToday,
+            newlyDue: true, // mark as newly due, not catch-up
+          });
+        }
+      }
+    });
   });
 
   const sortedVisits = Object.values(visits).sort((a, b) => a.date - b.date);
@@ -1141,6 +1191,39 @@ function CatchupSection({ stateFilter, setStateFilter }) {
                       );
                     })}
                   </div>
+                  
+                  {/* Back on schedule indicator */}
+                  {result.visits.length > 0 && (() => {
+                    const lastVisit = result.visits[result.visits.length - 1];
+                    const lastVisitAge = ageInWeeks(dobDate, lastVisit.date);
+                    // Check if this is a milestone age (52w=12m, 72w=18m, 192w=4y, etc.)
+                    const milestones = [52, 72, 192, 624];
+                    const isMilestone = milestones.some(m => Math.abs(lastVisitAge - m) < 2);
+                    // Check if last visit has newly-due vaccines
+                    const hasNewlyDue = lastVisit.vaccines.some(v => v.newlyDue);
+                    
+                    if (isMilestone || hasNewlyDue) {
+                      return (
+                        <div style={{
+                          marginTop: "12px",
+                          padding: "10px 14px",
+                          background: "#f0f9ff",
+                          border: "1px solid #bfdbfe",
+                          borderRadius: "8px",
+                          fontSize: "13px",
+                          color: "#0369a1",
+                          fontWeight: 600,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                        }}>
+                          <span>ℹ️</span>
+                          <span>After this visit, the schedule returns to routine NIP timing</span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                 </>
               ) : null}
 
