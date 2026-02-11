@@ -569,6 +569,12 @@ function calcCatchupSchedule(dobDate, seriesStates, stateFilter) {
         }
       }
 
+      // PCV and MenB: 3-dose infant series is 2 primary + 1 booster at 12 months
+      if ((series.id === "PCV" || series.id === "MenB") && requiredDoses === 3 && i === 2) {
+        const boosterMinAge = addWeeks(dobDate, 48); // 12 months
+        if (boosterMinAge > earliest) earliest = boosterMinAge;
+      }
+
       if (series.id === "Rota") {
         const cutoff = addWeeks(dobDate, series.hardCutoffAllDosesWeeks);
         if (earliest >= cutoff) {
