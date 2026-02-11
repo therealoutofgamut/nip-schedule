@@ -6,7 +6,7 @@ const SCHEDULE_DATA = [
   // 6 weeks
   { vaccine: "DTPa-HepB-IPV-Hib", shortName: "6-in-1", age: "6 weeks", ageSort: 1, type: "routine", brand: "Infanrix hexa / Vaxelis", route: "IM", notes: "Diphtheria, tetanus, pertussis, hepatitis B, polio, Haemophilus influenzae type b." },
   { vaccine: "Pneumococcal (20vPCV)", shortName: "PCV20", age: "6 weeks", ageSort: 1, type: "routine", brand: "Prevenar 20", route: "IM", notes: "From Sep 2025, Prevenar 20 replaces Prevenar 13 for all children <18 years." },
-  { vaccine: "Rotavirus", shortName: "Rota", age: "6 weeks", ageSort: 1, type: "routine", brand: "Rotarix", route: "Oral", notes: "Dose 1 must be given by 14 weeks of age. Cannot be given after this window." },
+  { vaccine: "Rotavirus", shortName: "Rota", age: "6 weeks", ageSort: 1, type: "routine", brand: "Rotarix", route: "Oral", notes: "Dose 1 must be given by 14 weeks + 6 days of age. Cannot be given after this window." },
   { vaccine: "Meningococcal B", shortName: "MenB", age: "6 weeks", ageSort: 1, type: "indigenous", brand: "Bexsero", route: "IM", notes: "Aboriginal and Torres Strait Islander infants. Prophylactic paracetamol recommended." },
   { vaccine: "Meningococcal B", shortName: "MenB", age: "6 weeks", ageSort: 1, type: "recommended", brand: "Bexsero", route: "IM", notes: "Recommended for ALL infants <2 years. Not NIP-funded for non-Indigenous children — available via private prescription (~$110–135/dose). State-funded in SA, QLD, NT. Prophylactic paracetamol recommended." },
   // 4 months
@@ -26,9 +26,9 @@ const SCHEDULE_DATA = [
   { vaccine: "Meningococcal B", shortName: "MenB", age: "12 months", ageSort: 4, type: "indigenous", brand: "Bexsero", route: "IM", notes: "Aboriginal and Torres Strait Islander children. Catch-up available for ATSI children <2 years." },
   { vaccine: "Meningococcal B", shortName: "MenB", age: "12 months", ageSort: 4, type: "recommended", brand: "Bexsero", route: "IM", notes: "Booster dose recommended for ALL children. Not NIP-funded for non-Indigenous children. State-funded in SA, QLD, NT." },
   // 18 months
-  { vaccine: "Hib", shortName: "Hib", age: "18 months", ageSort: 5, type: "routine", brand: "ActHIB", route: "IM", notes: "Haemophilus influenzae type b booster dose." },
+  { vaccine: "Hib", shortName: "Hib", age: "18 months", ageSort: 5, type: "routine", brand: "ActHIB / PedvaxHIB", route: "IM", notes: "Haemophilus influenzae type b booster dose." },
   { vaccine: "DTPa", shortName: "DTPa", age: "18 months", ageSort: 5, type: "routine", brand: "Infanrix / Tripacel", route: "IM", notes: "Diphtheria, tetanus, acellular pertussis booster." },
-  { vaccine: "MMRV", shortName: "MMRV", age: "18 months", ageSort: 5, type: "routine", brand: "Priorix-Tetra / ProQuad", route: "SC", notes: "Measles, mumps, rubella and varicella (chickenpox). Second MMR dose + first varicella dose." },
+  { vaccine: "MMRV", shortName: "MMRV", age: "18 months", ageSort: 5, type: "routine", brand: "Priorix-Tetra", route: "SC", notes: "Measles, mumps, rubella and varicella (chickenpox). Second MMR dose + first varicella dose." },
   { vaccine: "Varicella (2nd dose)", shortName: "VZV2", age: "18 months+", ageSort: 5.5, type: "recommended", brand: "Varilrix", route: "SC", notes: "A 2nd dose of varicella vaccine is recommended for all children 12m to <14y, ≥4 weeks after first dose (MMRV at 18m). Not NIP-funded. Reduces risk of breakthrough varicella. Can be given at any age from 19 months to 13 years." },
   { vaccine: "Hepatitis A", shortName: "HepA", age: "18 months", ageSort: 5, type: "indigenous", brand: "Vaqta Paed / Havrix Junior", route: "IM", notes: "Aboriginal and Torres Strait Islander children in QLD, NT, SA, WA. First dose of 2-dose schedule." },
   // 4 years
@@ -179,8 +179,8 @@ const COMPONENT_EXPAND = {
     { vaccine: "Haemophilus influenzae type b", shortName: "Hib", notes: "Contained in hexavalent vaccine (Infanrix hexa / Vaxelis)" },
   ],
   "MMRV": [
-    { vaccine: "Measles, Mumps, Rubella", shortName: "MMR", notes: "Contained in MMRV (Priorix-Tetra / ProQuad). Second MMR dose." },
-    { vaccine: "Varicella (Chickenpox)", shortName: "VZV", notes: "Contained in MMRV (Priorix-Tetra / ProQuad). First varicella dose." },
+    { vaccine: "Measles, Mumps, Rubella", shortName: "MMR", notes: "Contained in MMRV (Priorix-Tetra). Second MMR dose." },
+    { vaccine: "Varicella (Chickenpox)", shortName: "VZV", notes: "Contained in MMRV (Priorix-Tetra). First varicella dose." },
   ],
   "DTPa-IPV": [
     { vaccine: "Diphtheria, Tetanus, Pertussis", shortName: "DTPa", notes: "Pre-school booster. Contained in DTPa-IPV (Infanrix IPV / Quadracel)" },
@@ -243,7 +243,7 @@ const VACCINE_DETAILS = {
   Rotavirus: {
     diseases: "Severe gastroenteritis in infants and young children",
     contraindications: "History of intussusception. SCID. Anaphylaxis to previous dose.",
-    schedule: "2 doses: 6w and 4m. Strict age limits — dose 1 by 14 weeks, dose 2 by 24 weeks"
+    schedule: "2 doses: 6w and 4m. Strict age limits – dose 1 by 14 weeks + 6 days, dose 2 by 24 weeks + 6 days"
   },
   "Meningococcal B": {
     diseases: "Invasive meningococcal disease (serogroup B) — meningitis, septicaemia",
@@ -263,7 +263,7 @@ const VACCINE_DETAILS = {
   "RSV (Abrysvo)": {
     diseases: "Respiratory syncytial virus (RSV) — bronchiolitis, pneumonia in infants. Leading cause of hospitalisation in infants <6 months.",
     contraindications: "Anaphylaxis to previous dose or component. Do NOT use Arexvy (only approved for ≥50 years, contraindicated in pregnancy).",
-    schedule: "NIP-funded from Feb 2025. Single dose from 28 weeks gestation (ideally by 36w). Infant protection via transplacental antibodies. ~57% reduction in hospitalisation for severe RSV in infants <6 months. Only recommended once — advice on subsequent pregnancies pending."
+    schedule: "NIP-funded from Feb 2025. Single dose from 28 weeks gestation (ideally by 36w). Infant protection via transplacental antibodies. ~57% reduction in hospitalisation for severe RSV in infants <6 months. Recommended in each pregnancy."
   },
   "Nirsevimab (RSV mAb)": {
     diseases: "RSV prevention in infants — long-acting monoclonal antibody (not a vaccine)",
@@ -308,7 +308,7 @@ const VACCINE_DETAILS = {
   "Pertussis (dTpa)": {
     diseases: "Pertussis (whooping cough) — passive antibody transfer to protect newborns",
     contraindications: "Anaphylaxis to previous dose. Encephalopathy within 7 days of pertussis vaccine.",
-    schedule: "Each pregnancy, ideally 28–32 weeks gestation. Can be given up to delivery."
+    schedule: "Each pregnancy, ideally 20–32 weeks gestation. Can be given up to delivery."
   },
 };
 
@@ -381,7 +381,7 @@ function VaccineCard({ item, onClick, selectedState }) {
           background: "#FFF8E7", padding: "3px 8px", borderRadius: "4px",
           display: "inline-block"
         }}>
-          ðŸ§¬ Given as <strong>{item._comboSource}</strong> ({item._comboBrand})
+          🧬 Given as <strong>{item._comboSource}</strong> ({item._comboBrand})
         </div>
       )}
     </button>
@@ -1002,7 +1002,7 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
     <section>
       <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: "26px", fontWeight: 400, margin: "0 0 6px" }}>My Patient</h2>
       <p style={{ color: "#777", fontSize: "14px", margin: "0 0 24px" }}>
-        Enter a date of birth to see vaccines missed or due within the next 2 months.
+        Enter a date of birth to see vaccines recently due or coming up in the next 2 months.
       </p>
 
       {/* DOB Input */}
@@ -1059,7 +1059,7 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
               {schedule.overdue.length > 0 && (
                 <div style={{ textAlign: "center", background: "#fff0f0", borderRadius: "8px", padding: "8px 14px" }}>
                   <div style={{ fontSize: "22px", fontWeight: 700, color: "#c0392b" }}>{schedule.overdue.length}</div>
-                  <div style={{ fontSize: "11px", color: "#c0392b", fontWeight: 600 }}>Overdue</div>
+                  <div style={{ fontSize: "11px", color: "#c0392b", fontWeight: 600 }}>Recently due</div>
                 </div>
               )}
               {schedule.upcoming.length > 0 && (
@@ -1080,13 +1080,13 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
       )}
 
       {dobDate && totalCount === 0 && (
-        <p style={{ color: "#999", textAlign: "center", padding: "32px 0" }}>No vaccines due or overdue in the next 2 months.</p>
+        <p style={{ color: "#999", textAlign: "center", padding: "32px 0" }}>No vaccines due or recently due in this 2-month window.</p>
       )}
 
       {dobDate && totalCount > 0 && (
         <>
           <SectionBlock
-            title="Missed (last 2 months)" items={schedule.overdue} status="overdue"
+            title="Recently due — confirm in AIR" items={schedule.overdue} status="overdue"
             color="#c0392b" bg="#fff0f0" icon="⚠️"
           />
           <SectionBlock
