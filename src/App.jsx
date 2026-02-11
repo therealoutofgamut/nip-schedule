@@ -343,7 +343,7 @@ const CATCHUP_SERIES = [
     ageDependentDoses: true, // computed at runtime
     minIntervalWeeks: 8,
     minAgeFirstDoseWeeks: 6,
-    routineAges: [6, 16, 48], // 6w, 4m, 12m (booster)
+    routineAges: [6, 16, 52], // 6w, 4m, 12m (booster)
     note: "Doses depend on age at first presentation. Min 8 weeks between doses in catch-up. ATSI and at-risk children <7m need 4 doses (add 1).",
   },
   {
@@ -371,8 +371,8 @@ const CATCHUP_SERIES = [
     route: "SC",
     maxDoses: 2,
     minIntervalWeeks: 4,
-    minAgeFirstDoseWeeks: 48, // 12 months
-    routineAges: [48, 72], // 12m, 18m
+    minAgeFirstDoseWeeks: 52, // 12 months
+    routineAges: [52, 72], // 12m, 18m
     note: "Dose 1 from 12 months. Dose 2 ideally at 18m as MMRV (adds varicella). Min 4 weeks between doses.",
   },
   {
@@ -396,8 +396,8 @@ const CATCHUP_SERIES = [
     type: "routine",
     route: "IM",
     maxDoses: 1,
-    minAgeFirstDoseWeeks: 48,
-    routineAges: [48], // 12m
+    minAgeFirstDoseWeeks: 52,
+    routineAges: [52], // 12m
     note: "Single catch-up dose if 12m dose missed. Separate Year 10 school dose is routine.",
   },
   {
@@ -410,7 +410,7 @@ const CATCHUP_SERIES = [
     maxDoses: 3, // infant series; adolescents need only 2
     minIntervalWeeks: 8,
     minAgeFirstDoseWeeks: 6,
-    routineAges: [6, 16, 48], // 6w, 4m, 12m (ATSI schedule)
+    routineAges: [6, 16, 52], // 6w, 4m, 12m (ATSI schedule)
     ageDependentDoses: true,
     note: "Infant series (< 2y): 3 doses. Adolescents 15–19y: 2 doses ≥8 weeks apart. Not NIP-funded except ATSI and some states.",
   },
@@ -437,8 +437,8 @@ const CATCHUP_SERIES = [
     route: "IM",
     ageDependentDoses: true,
     minIntervalWeeks: 24, // 6 months (2-dose schedule)
-    minAgeFirstDoseWeeks: 468, // ~10.8y — Year 7 context
-    routineAges: [576, 600], // Year 7, 6 months later
+    minAgeFirstDoseWeeks: 624, // 12y — Year 7 context
+    routineAges: [624, 650], // Year 7, 6 months later
     note: "< 15y at first dose: 2 doses min 6 months apart. ≥ 15y or immunocompromised: 3 doses (0, 4–8w, 6m). Funded to age 25 for catch-up.",
   },
   {
@@ -449,8 +449,8 @@ const CATCHUP_SERIES = [
     type: "routine",
     route: "IM",
     maxDoses: 1,
-    minAgeFirstDoseWeeks: 468, // Year 7
-    routineAges: [576], // Year 7
+    minAgeFirstDoseWeeks: 624, // Year 7 (12y)
+    routineAges: [624], // Year 7
     note: "Single adolescent booster (Year 7 school program). Separate to pregnancy dTpa.",
   },
 ];
@@ -1731,7 +1731,7 @@ const AGESORT_WEEKS = {
   2: 16,      // 4 months
   3: 24,      // 6 months
   3.5: 26,    // Flu starts (6m–5y)
-  4: 48,      // 12 months
+  4: 52,      // 12 months
   5: 72,      // 18 months
   5.5: 76,    // 18m+ (VZV 2nd dose)
   6: 192,     // 4 years
