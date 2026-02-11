@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Analytics } from '@vercel/analytics/react';
 
 const SCHEDULE_DATA = [
   // Birth
@@ -69,8 +68,56 @@ const TYPES = {
   indigenous: { label: "Aboriginal & TSI", color: "#9B4D13", bg: "#FEF0E4" },
   "at-risk": { label: "At-Risk / Medical", color: "#1D4ED8", bg: "#E6EFFF" },
   recommended: { label: "Recommended (not funded)", color: "#7C3AED", bg: "#F3EEFF" },
-  state: { label: "State/Territory funded", color: "#0891B2", bg: "#E0F2FE" },
+  state: { label: "State/Territory funded", color: "#B45309", bg: "#FEF3C7" },
 };
+
+const STATES = {
+  ALL: "All states/territories",
+  NSW: "New South Wales",
+  VIC: "Victoria",
+  QLD: "Queensland",
+  SA: "South Australia",
+  WA: "Western Australia",
+  TAS: "Tasmania",
+  NT: "Northern Territory",
+  ACT: "Australian Capital Territory",
+};
+
+// State-specific funding for vaccines not universally funded on NIP
+const STATE_FUNDING = {
+  MenB: ["SA", "QLD", "NT"], // MenB for all infants (non-Indigenous)
+  HepA: ["QLD", "NT", "SA", "WA"], // HepA for ATSI children
+  Nirsev: ["NSW", "VIC", "QLD", "SA", "WA", "TAS", "NT", "ACT"], // All states have RSV programs
+};
+
+// Check if a vaccine is funded in a specific state
+function isFundedInState(vaccine, state) {
+  if (state === "ALL") return true;
+  
+  // Routine and at-risk are NIP-funded everywhere
+  if (vaccine.type === "routine" || vaccine.type === "at-risk") return true;
+  
+  // Indigenous vaccines are NIP-funded everywhere for ATSI people
+  // But HepA is only in certain states
+  if (vaccine.type === "indigenous") {
+    if (vaccine.shortName === "HepA") {
+      return STATE_FUNDING.HepA.includes(state);
+    }
+    return true; // Other indigenous vaccines (MenB, Zoster, PCV) are funded everywhere
+  }
+  
+  // State-funded and recommended vaccines - check specific state funding
+  if (vaccine.shortName === "MenB" && vaccine.type === "recommended") {
+    return STATE_FUNDING.MenB.includes(state);
+  }
+  
+  if (vaccine.shortName === "Nirsev") {
+    return STATE_FUNDING.Nirsev.includes(state);
+  }
+  
+  // VZV2 and adolescent MenB are recommended everywhere but not funded anywhere
+  return false;
+}
 
 // Timeline shows individual antigens, mapping through combination vaccines
 const TIMELINE_ANTIGENS = [
@@ -282,8 +329,10 @@ function TypeBadge({ type }) {
   );
 }
 
-function VaccineCard({ item, onClick }) {
+function VaccineCard({ item, onClick, selectedState }) {
   const t = TYPES[item.type];
+  const isFunded = isFundedInState(item, selectedState);
+  
   return (
     <button
       onClick={() => onClick(item)}
@@ -300,13 +349,28 @@ function VaccineCard({ item, onClick }) {
         transition: "all 0.15s ease",
         fontFamily: "inherit",
         marginBottom: "8px",
+        opacity: isFunded ? 1 : 0.5,
       }}
       onMouseEnter={e => { e.currentTarget.style.boxShadow = `0 2px 12px ${t.color}18`; e.currentTarget.style.borderColor = `${t.color}44`; }}
       onMouseLeave={e => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.borderColor = `${t.color}22`; }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
         <span style={{ fontWeight: 700, fontSize: "14px", color: "#1a1a2e" }}>{item.vaccine}</span>
-        <TypeBadge type={item.type} />
+        <div style={{ display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }}>
+          <TypeBadge type={item.type} />
+          {selectedState !== "ALL" && !isFunded && (
+            <span style={{
+              fontSize: "10px",
+              padding: "2px 6px",
+              borderRadius: "3px",
+              background: "#fee",
+              color: "#c33",
+              fontWeight: 600,
+            }}>
+              Not funded in {STATES[selectedState].split(' ')[0]}
+            </span>
+          )}
+        </div>
       </div>
       <div style={{ fontSize: "12px", color: "#666", marginTop: "4px" }}>
         {item.brand} · {item.route}
@@ -370,6 +434,30 @@ function Modal({ item, onClose }) {
               <p style={{ margin: "4px 0 0", color: "#555" }}>{details.contraindications}</p>
             </div>
           )}
+          {(item.shortName === "MenB" && item.type === "recommended") && (
+            <div style={{ marginBottom: "14px", background: "#FFF8E7", padding: "10px 12px", borderRadius: "6px" }}>
+              <strong style={{ color: "#8B6914", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em" }}>State funding</strong>
+              <p style={{ margin: "4px 0 0", color: "#555", fontSize: "13px" }}>
+                State-funded for all infants in <strong>SA, QLD, NT</strong>. Not funded in NSW, VIC, WA, TAS, ACT (private prescription required).
+              </p>
+            </div>
+          )}
+          {item.shortName === "HepA" && item.type === "indigenous" && (
+            <div style={{ marginBottom: "14px", background: "#FFF8E7", padding: "10px 12px", borderRadius: "6px" }}>
+              <strong style={{ color: "#8B6914", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em" }}>State funding</strong>
+              <p style={{ margin: "4px 0 0", color: "#555", fontSize: "13px" }}>
+                NIP-funded for Aboriginal & Torres Strait Islander children in <strong>QLD, NT, SA, WA</strong> only. Not funded in NSW, VIC, TAS, ACT.
+              </p>
+            </div>
+          )}
+          {item.shortName === "Nirsev" && (
+            <div style={{ marginBottom: "14px", background: "#FFF8E7", padding: "10px 12px", borderRadius: "6px" }}>
+              <strong style={{ color: "#8B6914", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em" }}>State funding</strong>
+              <p style={{ margin: "4px 0 0", color: "#555", fontSize: "13px" }}>
+                All states/territories have RSV programs, but eligibility criteria, seasonal timing, and age limits vary by jurisdiction. Check your local program.
+              </p>
+            </div>
+          )}
         </div>
         <div style={{ marginTop: "16px", paddingTop: "14px", borderTop: "1px solid #eee", fontSize: "11px", color: "#999" }}>
           Source: Australian Immunisation Handbook · NIP Schedule Jan 2026
@@ -379,7 +467,7 @@ function Modal({ item, onClose }) {
   );
 }
 
-function Timeline({ viewMode = "combo", onSelect }) {
+function Timeline({ viewMode = "combo", onSelect, stateFilter = "ALL", ageFilter = "All ages", typeFilter = "all" }) {
   const scrollRef = useRef(null);
   
   // In combo mode: show vaccine products as administered
@@ -439,7 +527,12 @@ function Timeline({ viewMode = "combo", onSelect }) {
         if (!seen.has(dedupKey)) {
           seen.add(dedupKey);
           const isCombo = antigens.length > 1;
-          dots.push({ x, type: d.type, isCombo });
+          // Check if this vaccine matches filters
+          const matchesAge = ageFilter === "All ages" || d.age === ageFilter;
+          const matchesType = typeFilter === "all" || d.type === typeFilter;
+          const isFunded = isFundedInState(d, stateFilter);
+          const visible = matchesAge && matchesType;
+          dots.push({ x, type: d.type, isCombo, vaccine: d, visible, isFunded });
         }
       }
     });
@@ -457,7 +550,12 @@ function Timeline({ viewMode = "combo", onSelect }) {
         const dedupKey = `${x}-${d.type}`;
         if (!seen.has(dedupKey)) {
           seen.add(dedupKey);
-          dots.push({ x, type: d.type, isCombo: false });
+          // Check if this vaccine matches filters
+          const matchesAge = ageFilter === "All ages" || d.age === ageFilter;
+          const matchesType = typeFilter === "all" || d.type === typeFilter;
+          const isFunded = isFundedInState(d, stateFilter);
+          const visible = matchesAge && matchesType;
+          dots.push({ x, type: d.type, isCombo: false, vaccine: d, visible, isFunded });
         }
       }
     });
@@ -522,13 +620,22 @@ function Timeline({ viewMode = "combo", onSelect }) {
                   const siblings = grouped[d.x];
                   const idx = siblings.findIndex(s => s.j === j);
                   const offset = siblings.length > 1 ? (idx - (siblings.length - 1) / 2) * 9 : 0;
+                  
+                  // Calculate opacity based on filters
+                  let dotOpacity = 0.9;
+                  if (!d.visible) {
+                    dotOpacity = 0.15; // Very faded if age/type don't match
+                  } else if (stateFilter !== "ALL" && !d.isFunded) {
+                    dotOpacity = 0.35; // Moderately faded if not funded in selected state
+                  }
+                  
                   return (
                     <g key={j}>
                       <circle cx={xScale(d.x) + offset} cy={y} r={6.5}
-                        fill={TYPES[d.type].color} opacity={0.9} />
+                        fill={TYPES[d.type].color} opacity={dotOpacity} />
                       {d.isCombo && (
                         <circle cx={xScale(d.x) + offset} cy={y} r={6.5}
-                          fill="none" stroke="#fff" strokeWidth={2} opacity={0.8} />
+                          fill="none" stroke="#fff" strokeWidth={2} opacity={dotOpacity * 0.9} />
                       )}
                     </g>
                   );
@@ -715,9 +822,290 @@ function FAQ() {
   );
 }
 
+// ──────────────────────────────────────────────
+// Patient Schedule Calculator
+// ──────────────────────────────────────────────
+
+// ageSort → weeks since birth (childhood + adult)
+const AGESORT_WEEKS = {
+  0: 0,       // Birth
+  0.5: 3,     // Nirsevimab seasonal
+  1: 6,       // 6 weeks
+  2: 16,      // 4 months
+  3: 24,      // 6 months
+  3.5: 26,    // Flu starts (6m–5y)
+  4: 48,      // 12 months
+  5: 72,      // 18 months
+  5.5: 76,    // 18m+ (VZV 2nd dose)
+  6: 192,     // 4 years
+  7: 576,     // Year 7 (~12y)
+  8: 720,     // Year 10 (~15y)
+  8.5: 750,   // 15–19y MenB
+  // 9 = pregnancy — handled separately
+  9.5: 2600,  // ≥50y ATSI
+  10: 3380,   // ≥65y
+  11: 3640,   // ≥70y
+};
+
+function formatRelativeWeeks(weeks) {
+  const abs = Math.abs(weeks);
+  if (abs < 1.5) return "this week";
+  if (abs < 8) return `${Math.round(abs)} weeks`;
+  if (abs < 30) return `${Math.round(abs / 4.33)} months`;
+  return `${(abs / 52).toFixed(1)} years`;
+}
+
+function formatDate(date) {
+  return date.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function formatAgeAtDate(dobDate, targetDate) {
+  const weeks = (targetDate - dobDate) / (1000 * 60 * 60 * 24 * 7);
+  if (weeks < 2) return `${Math.round(weeks * 7)}d`;
+  if (weeks < 20) return `${Math.round(weeks)}w`;
+  if (weeks < 100) return `${Math.round(weeks / 4.33)}m`;
+  const years = weeks / 52;
+  return years < 2 ? `${Math.round(years * 12)}m` : `${Math.floor(years)}y`;
+}
+
+function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
+  const [dob, setDob] = useState("");
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const dobDate = useMemo(() => {
+    if (!dob) return null;
+    const d = new Date(dob);
+    return isNaN(d) ? null : d;
+  }, [dob]);
+
+  const ageWeeks = useMemo(() => {
+    if (!dobDate) return null;
+    return (today - dobDate) / (1000 * 60 * 60 * 24 * 7);
+  }, [dobDate]);
+
+  const schedule = useMemo(() => {
+    if (!dobDate) return { overdue: [], upcoming: [] };
+
+    // Deduplicate by shortName+ageSort, preferring funded variant for state
+    const byKey = {};
+    SCHEDULE_DATA.forEach(d => {
+      if (d.ageSort === 9) return; // skip pregnancy
+      const key = `${d.shortName}-${d.ageSort}`;
+      if (!byKey[key]) byKey[key] = [];
+      byKey[key].push(d);
+    });
+
+    const WINDOW_WEEKS = 8.7; // ~2 months
+
+    const overdue = [], upcoming = [];
+
+    Object.values(byKey).forEach(variants => {
+      // Pick funded variant for the selected state, otherwise first variant
+      const chosen = variants.find(v => isFundedInState(v, stateFilter)) || variants[0];
+      const isFunded = isFundedInState(chosen, stateFilter);
+
+      const dueWeeks = AGESORT_WEEKS[chosen.ageSort];
+      if (dueWeeks === undefined) return;
+
+      const dueDate = new Date(dobDate.getTime() + dueWeeks * 7 * 24 * 60 * 60 * 1000);
+      const weeksFromNow = (dueDate - today) / (1000 * 60 * 60 * 24 * 7);
+
+      // Only include vaccines within ±2 months of today
+      if (weeksFromNow < -WINDOW_WEEKS || weeksFromNow > WINDOW_WEEKS) return;
+
+      const entry = { ...chosen, dueDate, weeksFromNow, isFunded };
+
+      if (weeksFromNow < 0) {
+        overdue.push(entry);
+      } else {
+        upcoming.push(entry);
+      }
+    });
+
+    // Sort each group by dueDate
+    const byDate = (a, b) => a.dueDate - b.dueDate;
+    overdue.sort(byDate);
+    upcoming.sort(byDate);
+
+    return { overdue, upcoming };
+  }, [dobDate, stateFilter]);
+
+  const stateName = stateFilter === "ALL" ? "all states" : STATES[stateFilter];
+
+  const rowStyle = (color, bg) => ({
+    display: "flex", justifyContent: "space-between", alignItems: "flex-start",
+    padding: "12px 16px", borderRadius: "8px", marginBottom: "6px",
+    background: bg, border: `1px solid ${color}22`, gap: "12px",
+    cursor: "pointer",
+  });
+
+  const VaccineRow = ({ item, showStatus }) => {
+    const t = TYPES[item.type];
+    return (
+      <div onClick={() => onSelectVaccine(item)} style={rowStyle(t.color, "#fff")}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+            <span style={{ fontWeight: 700, fontSize: "14px", color: "#1a1a2e" }}>{item.vaccine}</span>
+            <TypeBadge type={item.type} />
+            {!item.isFunded && stateFilter !== "ALL" && (
+              <span style={{ fontSize: "10px", padding: "2px 6px", borderRadius: "3px", background: "#fee", color: "#c33", fontWeight: 600 }}>
+                Private script
+              </span>
+            )}
+          </div>
+          <div style={{ fontSize: "12px", color: "#888", marginTop: "3px" }}>
+            {item.brand} · {item.route}
+          </div>
+        </div>
+        <div style={{ textAlign: "right", flexShrink: 0 }}>
+          <div style={{ fontSize: "13px", fontWeight: 700, color: showStatus === "overdue" ? "#c0392b" : "#1D4ED8" }}>
+            {showStatus === "overdue"
+              ? `${formatRelativeWeeks(item.weeksFromNow)} late`
+              : item.weeksFromNow < 1
+              ? "Due this week"
+              : `Due in ${formatRelativeWeeks(item.weeksFromNow)}`}
+          </div>
+          <div style={{ fontSize: "11px", color: "#999", marginTop: "2px" }}>
+            {showStatus === "overdue"
+              ? `Was due ${formatDate(item.dueDate)} · age ${formatAgeAtDate(dobDate, item.dueDate)}`
+              : `${formatDate(item.dueDate)} · age ${formatAgeAtDate(dobDate, item.dueDate)}`}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const SectionBlock = ({ title, items, status, color, bg, icon }) => {
+    if (items.length === 0) return null;
+    return (
+      <div style={{ marginBottom: "28px" }}>
+        <div style={{
+          display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px",
+          paddingBottom: "8px", borderBottom: `2px solid ${color}`
+        }}>
+          <span style={{ fontSize: "18px" }}>{icon}</span>
+          <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color }}>{title}</h3>
+          <span style={{
+            marginLeft: "auto", fontSize: "12px", fontWeight: 700,
+            background: bg, color, padding: "2px 8px", borderRadius: "12px"
+          }}>{items.length}</span>
+        </div>
+        {items.map((item, i) => <VaccineRow key={i} item={item} showStatus={status} />)}
+      </div>
+    );
+  };
+
+  const totalCount = schedule.overdue.length + schedule.upcoming.length;
+
+  return (
+    <section>
+      <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: "26px", fontWeight: 400, margin: "0 0 6px" }}>My Patient</h2>
+      <p style={{ color: "#777", fontSize: "14px", margin: "0 0 24px" }}>
+        Enter a date of birth to see vaccines missed or due within the next 2 months.
+      </p>
+
+      {/* DOB Input */}
+      <div style={{
+        background: "#fff", borderRadius: "12px", border: "1px solid #e8e8e8",
+        padding: "20px 24px", marginBottom: "28px"
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+          <div>
+            <label style={{ fontSize: "12px", fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.05em", display: "block", marginBottom: "6px" }}>
+              Date of Birth
+            </label>
+            <input
+              type="date"
+              value={dob}
+              onChange={e => setDob(e.target.value)}
+              max={new Date().toISOString().split("T")[0]}
+              style={{
+                padding: "9px 12px", borderRadius: "8px", border: "1px solid #d0d0d0",
+                fontSize: "14px", fontFamily: "inherit", color: "#1a1a2e",
+                background: "#FAFAF8", cursor: "pointer"
+              }}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: "12px", fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.05em", display: "block", marginBottom: "6px" }}>
+              State / Territory
+            </label>
+            <select
+              value={stateFilter}
+              onChange={e => setStateFilter(e.target.value)}
+              style={{
+                padding: "9px 12px", borderRadius: "8px", border: "1px solid #d0d0d0",
+                fontSize: "13px", background: "#FAFAF8", color: "#333",
+                fontFamily: "inherit", cursor: "pointer"
+              }}
+            >
+              {Object.entries(STATES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </div>
+          {dobDate && ageWeeks !== null && (
+            <div style={{ paddingTop: "4px" }}>
+              <div style={{ fontSize: "12px", fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Current Age</div>
+              <div style={{ fontSize: "22px", fontWeight: 700, color: "#1a1a2e" }}>
+                {ageWeeks < 0 ? "Not yet born" :
+                  ageWeeks < 20 ? `${Math.round(ageWeeks)} weeks` :
+                  ageWeeks < 100 ? `${Math.round(ageWeeks / 4.33)} months` :
+                  `${Math.floor(ageWeeks / 52)} years, ${Math.floor((ageWeeks % 52) / 4.33)} months`}
+              </div>
+            </div>
+          )}
+          {dobDate && totalCount > 0 && (
+            <div style={{ marginLeft: "auto", display: "flex", gap: "12px", flexWrap: "wrap" }}>
+              {schedule.overdue.length > 0 && (
+                <div style={{ textAlign: "center", background: "#fff0f0", borderRadius: "8px", padding: "8px 14px" }}>
+                  <div style={{ fontSize: "22px", fontWeight: 700, color: "#c0392b" }}>{schedule.overdue.length}</div>
+                  <div style={{ fontSize: "11px", color: "#c0392b", fontWeight: 600 }}>Overdue</div>
+                </div>
+              )}
+              {schedule.upcoming.length > 0 && (
+                <div style={{ textAlign: "center", background: "#eff6ff", borderRadius: "8px", padding: "8px 14px" }}>
+                  <div style={{ fontSize: "22px", fontWeight: 700, color: "#1D4ED8" }}>{schedule.upcoming.length}</div>
+                  <div style={{ fontSize: "11px", color: "#1D4ED8", fontWeight: 600 }}>Due soon</div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {!dobDate && (
+        <div style={{ textAlign: "center", padding: "48px 24px", color: "#bbb", fontSize: "15px" }}>
+          Enter a date of birth above to see the patient's immunisation schedule
+        </div>
+      )}
+
+      {dobDate && totalCount === 0 && (
+        <p style={{ color: "#999", textAlign: "center", padding: "32px 0" }}>No vaccines due or overdue in the next 2 months.</p>
+      )}
+
+      {dobDate && totalCount > 0 && (
+        <>
+          <SectionBlock
+            title="Missed (last 2 months)" items={schedule.overdue} status="overdue"
+            color="#c0392b" bg="#fff0f0" icon="⚠️"
+          />
+          <SectionBlock
+            title="Due in next 2 months" items={schedule.upcoming} status="upcoming"
+            color="#1D4ED8" bg="#eff6ff" icon="📅"
+          />
+          <p style={{ fontSize: "11px", color: "#bbb", marginTop: "16px", lineHeight: 1.6 }}>
+            This tool does not account for vaccines already given. Always verify the patient's immunisation history in AIR before administering. Tap any vaccine for full details.
+          </p>
+        </>
+      )}
+    </section>
+  );
+}
+
 export default function AustralianNIPSchedule() {
   const [ageFilter, setAgeFilter] = useState("All ages");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [stateFilter, setStateFilter] = useState("ALL");
   const [activeSection, setActiveSection] = useState("schedule");
   const [selectedItem, setSelectedItem] = useState(null);
   const [viewMode, setViewMode] = useState("combo"); // "combo" or "components"
@@ -828,6 +1216,7 @@ export default function AustralianNIPSchedule() {
         {navBtn("schedule", "Schedule by Age")}
         {navBtn("reference", "Vaccine Reference")}
         {navBtn("faq", "FAQ")}
+        {navBtn("patient", "My Patient")}
       </nav>
 
       <main style={{ maxWidth: "860px", margin: "0 auto", padding: "32px 20px 80px" }}>
@@ -837,6 +1226,26 @@ export default function AustralianNIPSchedule() {
           <section>
             <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: "26px", fontWeight: 400, margin: "0 0 6px" }}>Schedule by Age</h2>
             <p style={{ color: "#777", fontSize: "14px", margin: "0 0 20px" }}>Overview of all childhood vaccines. Tap any card below for full details.</p>
+
+            {/* Filter dropdowns */}
+            <div style={{ marginBottom: "20px" }}>
+              <div style={{ fontSize: "13px", color: "#888", fontWeight: 600, marginBottom: "8px" }}>
+                Filter by:
+              </div>
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+                <select value={stateFilter} onChange={e => setStateFilter(e.target.value)} style={selectStyle}>
+                  {Object.entries(STATES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+                <select value={ageFilter} onChange={e => setAgeFilter(e.target.value)} style={selectStyle}>
+                  <option>All ages</option>
+                  {AGE_GROUPS.map(a => <option key={a}>{a}</option>)}
+                </select>
+                <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={selectStyle}>
+                  <option value="all">All types</option>
+                  {Object.entries(TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                </select>
+              </div>
+            </div>
 
             {/* View mode toggle */}
             <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
@@ -858,7 +1267,13 @@ export default function AustralianNIPSchedule() {
 
             {/* Timeline overview */}
             <div style={{ background: "#fff", borderRadius: "12px", border: "1px solid #e8e8e8", padding: "16px", overflow: "hidden", marginBottom: "12px" }}>
-              <Timeline viewMode={viewMode} onSelect={setSelectedItem} />
+              <Timeline 
+                viewMode={viewMode} 
+                onSelect={setSelectedItem}
+                stateFilter={stateFilter}
+                ageFilter={ageFilter}
+                typeFilter={typeFilter}
+              />
             </div>
             <div style={{ display: "flex", gap: "16px", marginBottom: "16px", flexWrap: "wrap" }}>
               {Object.entries(TYPES).map(([key, val]) => (
@@ -874,6 +1289,30 @@ export default function AustralianNIPSchedule() {
                 </span>
               )}
             </div>
+            
+            {/* Filter status indicator */}
+            {(stateFilter !== "ALL" || ageFilter !== "All ages" || typeFilter !== "all") && (
+              <div style={{ 
+                background: "#FFF8E7", 
+                border: "1px solid #F4D89D",
+                borderRadius: "8px", 
+                padding: "8px 12px", 
+                marginBottom: "16px",
+                fontSize: "12px",
+                color: "#8B6914",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px"
+              }}>
+                <span style={{ fontWeight: 600 }}>ℹ️ Filters active:</span>
+                <span>
+                  {stateFilter !== "ALL" && `Showing funding for ${STATES[stateFilter]} • `}
+                  {ageFilter !== "All ages" && `Age: ${ageFilter} • `}
+                  {typeFilter !== "all" && `Type: ${TYPES[typeFilter].label} • `}
+                  Faded dots = not funded or filtered out
+                </span>
+              </div>
+            )}
 
             {/* Pregnancy timeline */}
             <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#1a1a2e", margin: "24px 0 10px" }}>
@@ -907,17 +1346,6 @@ export default function AustralianNIPSchedule() {
             )}
             {viewMode === "combo" && <div style={{ marginBottom: "12px" }} />}
 
-            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "24px", alignItems: "center" }}>
-              <select value={ageFilter} onChange={e => setAgeFilter(e.target.value)} style={selectStyle}>
-                <option>All ages</option>
-                {AGE_GROUPS.map(a => <option key={a}>{a}</option>)}
-              </select>
-              <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={selectStyle}>
-                <option value="all">All types</option>
-                {Object.entries(TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-              </select>
-            </div>
-
             {grouped.length === 0 && (
               <p style={{ color: "#999", fontSize: "14px", padding: "32px 0", textAlign: "center" }}>No vaccines match your current filters.</p>
             )}
@@ -930,7 +1358,7 @@ export default function AustralianNIPSchedule() {
                   borderBottom: "2px solid #2d2b55", display: "inline-block"
                 }}>{age}</h3>
                 {items.map((item, i) => (
-                  <VaccineCard key={i} item={item} onClick={setSelectedItem} />
+                  <VaccineCard key={i} item={item} onClick={setSelectedItem} selectedState={stateFilter} />
                 ))}
               </div>
             ))}
@@ -956,6 +1384,11 @@ export default function AustralianNIPSchedule() {
             </div>
           </section>
         )}
+
+        {/* My Patient */}
+        {activeSection === "patient" && (
+          <PatientSection stateFilter={stateFilter} setStateFilter={setStateFilter} onSelectVaccine={setSelectedItem} />
+        )}
       </main>
 
       {/* Footer */}
@@ -977,7 +1410,6 @@ export default function AustralianNIPSchedule() {
       </footer>
 
       <Modal item={selectedItem} onClose={() => setSelectedItem(null)} />
-      <Analytics />
     </div>
   );
 }
