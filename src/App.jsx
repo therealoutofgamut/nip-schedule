@@ -342,7 +342,7 @@ const CATCHUP_SERIES = [
     ageDependentDoses: true, // computed at runtime
     minIntervalWeeks: 8,
     minAgeFirstDoseWeeks: 6,
-    note: "Doses depend on age at first presentation. Min 8 weeks between doses in catch-up.",
+    note: "Doses depend on age at first presentation. Min 8 weeks between doses in catch-up. ATSI and at-risk children <7m need 4 doses (add 1).",
   },
   {
     id: "Rota",
@@ -454,10 +454,12 @@ function ageInWeeks(dob, at) {
 }
 
 function getPCVRequiredDoses(ageWeeksAtFirst) {
-  if (ageWeeksAtFirst < 7 * 4)    return 4; // < 7m: 3+1
-  if (ageWeeksAtFirst < 12 * 4)   return 3; // 7–11m: 2+1
+  // Standard NIP catch-up (non-ATSI, non-at-risk).
+  // ATSI and at-risk children get 4 doses (<7m) — enter extra dose manually.
+  if (ageWeeksAtFirst < 7 * 4)    return 3; // < 7m: 2 primary + 1 booster
+  if (ageWeeksAtFirst < 12 * 4)   return 3; // 7–11m: 2 primary + 1 booster
   if (ageWeeksAtFirst < 24 * 4)   return 2; // 12–23m: 2 doses
-  return 1;                                  // 24m–5y: 1 dose
+  return 1;                                  // ≥24m: 1 dose
 }
 
 function getMenBRequiredDoses(ageWeeksAtFirst) {
