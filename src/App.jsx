@@ -886,7 +886,7 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
   }, [dobDate]);
 
   const schedule = useMemo(() => {
-    if (!dobDate) return { overdue: [], upcoming: [] };
+    if (!dobDate) return { overdue: [], upcoming: [], nextDue: null };
     const byKey = {};
     SCHEDULE_DATA.forEach(d => {
       if (d.ageSort === 9) return;
@@ -895,7 +895,7 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
       byKey[key].push(d);
     });
     const WINDOW_WEEKS = 8.7;
-    const overdue = [], upcoming = [];
+    const overdue = [], upcoming = [], future = [];
     Object.values(byKey).forEach(variants => {
       const chosen = variants.find(v => isFundedInState(v, stateFilter)) || variants[0];
       const isFunded = isFundedInState(chosen, stateFilter);
@@ -903,15 +903,20 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
       if (dueWeeks === undefined) return;
       const dueDate = new Date(dobDate.getTime() + dueWeeks * 7 * 24 * 60 * 60 * 1000);
       const weeksFromNow = (dueDate - today) / (1000 * 60 * 60 * 24 * 7);
-      if (weeksFromNow < -WINDOW_WEEKS || weeksFromNow > WINDOW_WEEKS) return;
       const entry = { ...chosen, dueDate, weeksFromNow, isFunded };
+      if (weeksFromNow >= 0) future.push(entry); // all future vaccines
+      if (weeksFromNow < -WINDOW_WEEKS || weeksFromNow > WINDOW_WEEKS) return;
       if (weeksFromNow < 0) overdue.push(entry);
       else upcoming.push(entry);
     });
     const byDate = (a, b) => a.dueDate - b.dueDate;
     overdue.sort(byDate);
     upcoming.sort(byDate);
-    return { overdue, upcoming };
+    future.sort(byDate);
+    // nextDue: earliest future vaccine not already in the upcoming window
+    // If upcoming is non-empty, it's the first upcoming; else first beyond window
+    const nextDue = future.length > 0 ? future[0] : null;
+    return { overdue, upcoming, nextDue };
   }, [dobDate, stateFilter]);
 
   // ── PDF generation ────────────────────────────────────────────────────
@@ -1013,16 +1018,12 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
         doc.setTextColor(255, 255, 255);
         doc.text(title, ML + 5, y + 6.8);
 
-        // Count badge
-        const badgeW = 10;
-        doc.setFillColor(255, 255, 255, 0.25);
+        // Count: white text right-aligned on header bar
         const countStr = String(count);
-        doc.setFontSize(8);
-        const tw = doc.getTextWidth(countStr);
-        const bx = ML + CW - badgeW - 3;
-        doc.roundedRect(bx, y + 1.5, badgeW, 7, 2, 2, "F");
-        doc.setTextColor(r, g, b);
-        doc.text(countStr, bx + badgeW/2, y + 6.5, { align: "center" });
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(255, 255, 255);
+        doc.text(countStr, ML + CW - 4, y + 6.8, { align: "right" });
         y += SECTION_HEADER_H + 3;
       };
 
@@ -1119,6 +1120,41 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
         drawSectionHeader("Due in next 2 months", schedule.upcoming.length, "#1D4ED8");
         schedule.upcoming.forEach((item, i) => drawVaccineRow(item, i === schedule.upcoming.length - 1));
         y += 6;
+      }
+
+      // ── NEXT VACCINE DUE (beyond the 2-month window) ─────────────────────
+      const nextBeyond = schedule.nextDue && schedule.nextDue.weeksFromNow > 8.7 ? schedule.nextDue : null;
+      if (nextBeyond) {
+        checkPageBreak(22);
+        // Banner background
+        setFill("#F4F6FB");
+        doc.roundedRect(ML, y, CW, 18, 3, 3, "F");
+        setFill("#2d2b55");
+        doc.roundedRect(ML, y, 4, 18, 2, 2, "F");
+        doc.rect(ML + 2, y, 2, 18, "F"); // square off left edge
+
+        doc.setFont("helvetica", "bold"); doc.setFontSize(8);
+        setTextColor("#888888");
+        doc.text("NEXT VACCINE DUE", ML + 10, y + 5.5);
+
+        doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+        setTextColor("#1a1a2e");
+        doc.text(nextBeyond.vaccine, ML + 10, y + 13);
+
+        // Date + timing right-aligned
+        doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+        setTextColor("#2d2b55");
+        doc.text(formatDate(nextBeyond.dueDate), ML + CW - 2, y + 9, { align: "right" });
+
+        doc.setFont("helvetica", "normal"); doc.setFontSize(8);
+        setTextColor("#888888");
+        const wfn = nextBeyond.weeksFromNow;
+        const timing = wfn < 20 ? `in ${Math.round(wfn)} weeks`
+          : wfn < 87 ? `in ${Math.round(wfn / 4.33)} months`
+          : `in ${(wfn / 52).toFixed(1)} years`;
+        doc.text(timing, ML + CW - 2, y + 15, { align: "right" });
+
+        y += 24;
       }
 
       // ── FOOTER ───────────────────────────────────────────────────────
@@ -1349,6 +1385,43 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
             title="Due in next 2 months" items={schedule.upcoming} status="upcoming"
             color="#1D4ED8" bg="#eff6ff" icon={"📅"}
           />
+          {(() => {
+            const nextBeyond = schedule.nextDue && schedule.nextDue.weeksFromNow > 8.7 ? schedule.nextDue : null;
+            if (!nextBeyond) return null;
+            const wfn = nextBeyond.weeksFromNow;
+            const timing = wfn < 20 ? `in ${Math.round(wfn)} weeks`
+              : wfn < 87 ? `in ${Math.round(wfn / 4.33)} months`
+              : `in ${(wfn / 52).toFixed(1)} years`;
+            return (
+              <div style={{
+                display: "flex", alignItems: "center", gap: "16px",
+                background: "#fff", borderRadius: "10px",
+                border: "1px solid #e0e4f0",
+                borderLeft: "4px solid #2d2b55",
+                padding: "14px 18px", marginBottom: "20px",
+              }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: "10px", fontWeight: 700, color: "#999", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>
+                    Next vaccine due
+                  </div>
+                  <div style={{ fontSize: "15px", fontWeight: 700, color: "#1a1a2e" }}>
+                    {nextBeyond.vaccine}
+                  </div>
+                  <div style={{ fontSize: "12px", color: "#888", marginTop: "2px" }}>
+                    {nextBeyond.brand} · {nextBeyond.route}
+                  </div>
+                </div>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ fontSize: "15px", fontWeight: 700, color: "#2d2b55" }}>
+                    {formatDate(nextBeyond.dueDate)}
+                  </div>
+                  <div style={{ fontSize: "12px", color: "#888", marginTop: "2px" }}>
+                    {timing}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
           <p style={{ fontSize: "11px", color: "#bbb", marginTop: "16px", lineHeight: 1.6 }}>
             This tool does not account for vaccines already given. Always verify the patient's immunisation history in AIR before administering. Tap any vaccine for full details.
           </p>
