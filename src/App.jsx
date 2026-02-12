@@ -1175,9 +1175,11 @@ function CatchupSection({ stateFilter, setStateFilter }) {
           checkPage(12);
           setFill("#FFF5F5"); doc.rect(ML, y, CW, 11, "F");
           doc.setFont("helvetica","bold"); doc.setFontSize(8); setTC("#c0392b");
-          doc.text(`${w.name}: `, ML+5, y+7.5);
+          const labelText = `${w.name}: `;
+          doc.text(labelText, ML+5, y+7.5);
+          const labelWidth = doc.getTextWidth(labelText);
           doc.setFont("helvetica","normal");
-          doc.text(w.msg, ML+5+doc.getTextWidth(`${w.name}: `), y+7.5);
+          doc.text(w.msg, ML+5+labelWidth, y+7.5);
           y += 13;
         });
       }
@@ -1218,7 +1220,7 @@ function CatchupSection({ stateFilter, setStateFilter }) {
         setFill("#f0f9ff"); doc.roundedRect(ML, y, CW, 12, 2, 2, "F");
         setStroke("#bfdbfe"); doc.setLineWidth(0.5); doc.roundedRect(ML, y, CW, 12, 2, 2, "S");
         doc.setFont("helvetica","bold"); doc.setFontSize(8); setTC("#0369a1");
-        doc.text("\u2139  Back on routine NIP schedule", ML+5, y+7.5);
+        doc.text("\u25BA  Back on routine NIP schedule", ML+5, y+7.5);
         y += 16;
       }
 
@@ -1259,6 +1261,15 @@ function CatchupSection({ stateFilter, setStateFilter }) {
         y += 4;
       }
 
+      // Scheduling rules note at end of content
+      checkPage(18);
+      y += 8;
+      setFill("#F4F6FB"); doc.roundedRect(ML, y, CW, 14, 3, 3, "F");
+      doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(100,100,100);
+      doc.text("Schedule split to max 4 injectable vaccines/visit. Live vaccines same day or \u22654 weeks apart.", ML+4, y+6);
+      doc.text("$ = Not NIP-funded (private cost).", ML+4, y+11);
+
+
       // Footer
       const H = 297; const footerY = H - 22;
       const pageCount = doc.getNumberOfPages();
@@ -1267,12 +1278,10 @@ function CatchupSection({ stateFilter, setStateFilter }) {
         setStroke("#E0E0E0"); doc.setLineWidth(0.3); doc.line(ML, footerY-2, W-MR, footerY-2);
         doc.setFont("helvetica","bold"); doc.setFontSize(7.5); setTC("#c0392b");
         doc.text("Always verify immunisation history in AIR before administering.", ML, footerY+2);
-        doc.setFont("helvetica","normal"); doc.setFontSize(6.5); doc.setTextColor(100,100,100);
-        doc.text("Schedule split to max 4 injectable vaccines/visit. Live vaccines same day or \u22654 weeks apart. $ = Not NIP-funded (private cost).", ML, footerY+7);
         doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(170,170,170);
-        doc.text(`Data: Australian Immunisation Handbook & NIP Schedule (Jan 2026)  \u00B7  nip.terrific.website`, ML, footerY+11);
+        doc.text(`Data: Australian Immunisation Handbook & NIP Schedule (Jan 2026)  \u00B7  nip.terrific.website`, ML, footerY+7);
         doc.setFont("helvetica","italic"); doc.setFontSize(7); doc.setTextColor(187,187,187);
-        doc.text("Dr Marc Theilhaber \u00B7 Dept of Respiratory Medicine \u00B7 Monash Children\u2019s Hospital", ML, footerY+15);
+        doc.text("Dr Marc Theilhaber \u00B7 Dept of Respiratory Medicine \u00B7 Monash Children\u2019s Hospital", ML, footerY+11);
         doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(187,187,187);
         doc.text(`Page ${i} of ${pageCount}`, W-MR, footerY+2, { align: "right" });
       }
