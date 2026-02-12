@@ -3324,6 +3324,8 @@ export default function AustralianNIPSchedule() {
       </footer>
 
       <Modal item={selectedItem} onClose={() => setSelectedItem(null)} />
+      <Analytics />
+      <SpeedInsights />
     </div>
   );
 }
