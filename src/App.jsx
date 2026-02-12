@@ -125,25 +125,6 @@ function isFundedInState(vaccine, state) {
   return false;
 }
 
-// Timeline shows individual antigens, mapping through combination vaccines
-const TIMELINE_ANTIGENS = [
-  { label: "Hep B",     key: "HepB" },
-  { label: "DTPa",      key: "DTPa" },
-  { label: "IPV",       key: "IPV" },
-  { label: "Hib",       key: "Hib" },
-  { label: "PCV",       key: "PCV" },
-  { label: "Rotavirus", key: "Rota" },
-  { label: "RSV",       key: "RSV" },
-  { label: "MenB",      key: "MenB" },
-  { label: "Influenza", key: "Flu" },
-  { label: "MenACWY",   key: "MenACWY" },
-  { label: "MMR",       key: "MMR" },
-  { label: "Varicella",  key: "VZV" },
-  { label: "Hep A",     key: "HepA" },
-  { label: "HPV",       key: "HPV" },
-  { label: "dTpa",      key: "dTpa" },
-];
-
 // Which antigens are in each scheduled vaccine, keyed by shortName
 const COMBO_MAP = {
   "HepB":     ["HepB"],
@@ -168,53 +149,6 @@ const COMBO_MAP = {
   "Nirsev":   ["RSV"],                                 // Nirsevimab infant mAb
   "Zoster":   [],                                      // not shown on childhood timeline
 };
-
-// Multivalent vaccine display names for legend
-const MULTIVALENT_LEGEND = [
-  { combo: "Infanrix hexa / Vaxelis", contains: "DTPa + Hep B + IPV + Hib", ages: "6w, 4m, 6m" },
-  { combo: "MMRV (Priorix-Tetra)", contains: "MMR + Varicella", ages: "18m" },
-  { combo: "DTPa-IPV (Infanrix IPV)", contains: "DTPa + IPV", ages: "4y" },
-];
-
-// For expanding combo vaccines into individual component cards
-const COMPONENT_EXPAND = {
-  "DTPa-HepB-IPV-Hib": [
-    { vaccine: "Diphtheria, Tetanus, Pertussis", shortName: "DTPa", notes: "Contained in hexavalent vaccine (Infanrix hexa / Vaxelis)" },
-    { vaccine: "Hepatitis B", shortName: "HepB", notes: "Contained in hexavalent vaccine (Infanrix hexa / Vaxelis)" },
-    { vaccine: "Polio (IPV)", shortName: "IPV", notes: "Inactivated polio. Contained in hexavalent vaccine (Infanrix hexa / Vaxelis)" },
-    { vaccine: "Haemophilus influenzae type b", shortName: "Hib", notes: "Contained in hexavalent vaccine (Infanrix hexa / Vaxelis)" },
-  ],
-  "MMRV": [
-    { vaccine: "Measles, Mumps, Rubella", shortName: "MMR", notes: "Contained in MMRV (Priorix-Tetra). Second MMR dose." },
-    { vaccine: "Varicella (Chickenpox)", shortName: "VZV", notes: "Contained in MMRV (Priorix-Tetra). First varicella dose." },
-  ],
-  "DTPa-IPV": [
-    { vaccine: "Diphtheria, Tetanus, Pertussis", shortName: "DTPa", notes: "Pre-school booster. Contained in DTPa-IPV (Infanrix IPV / Quadracel)" },
-    { vaccine: "Polio (IPV)", shortName: "IPV", notes: "Pre-school booster. Contained in DTPa-IPV (Infanrix IPV / Quadracel)" },
-  ],
-};
-
-function expandScheduleData(data) {
-  const expanded = [];
-  data.forEach(item => {
-    const components = COMPONENT_EXPAND[item.vaccine];
-    if (components) {
-      components.forEach(comp => {
-        expanded.push({
-          ...item,
-          vaccine: comp.vaccine,
-          shortName: comp.shortName,
-          notes: comp.notes,
-          _comboSource: item.vaccine,
-          _comboBrand: item.brand,
-        });
-      });
-    } else {
-      expanded.push(item);
-    }
-  });
-  return expanded;
-}
 
 // Non-linear axis: birth–18m gets ~60% of the visual width
 const TIMELINE_AGES = [
@@ -2073,11 +2007,10 @@ function Modal({ item, onClose }) {
   );
 }
 
-function Timeline({ viewMode = "combo", onSelect, stateFilter = "ALL", ageFilter = "All ages", typeFilter = "all" }) {
+function Timeline({ onSelect, stateFilter = "ALL", ageFilter = "All ages", typeFilter = "all" }) {
   const scrollRef = useRef(null);
   
-  // In combo mode: show vaccine products as administered
-  // In components mode: show individual antigens
+  // Show vaccine products as administered (combination vaccines)
   const COMBO_VACCINES = [
     { label: "Hep B",     key: "HepB" },
     { label: "Nirsevimab", key: "Nirsev" },
@@ -2098,7 +2031,7 @@ function Timeline({ viewMode = "combo", onSelect, stateFilter = "ALL", ageFilter
     { label: "dTpa",      key: "dTpa" },
   ];
 
-  const rows = viewMode === "components" ? TIMELINE_ANTIGENS : COMBO_VACCINES;
+  const rows = COMBO_VACCINES;
   const W = 920;
   const H = rows.length * 38 + 66;
   const left = 115;
@@ -2120,32 +2053,7 @@ function Timeline({ viewMode = "combo", onSelect, stateFilter = "ALL", ageFilter
 
   const weekMap = { 0: 0, 0.5: 3, 1: 6, 2: 16, 3: 24, 3.5: 26, 4: 48, 5: 72, 5.5: 76, 6: 192, 7: 576, 8: 720, 8.5: 750 };
 
-  // Components mode: map through COMBO_MAP to find all doses containing this antigen
-  const getDotsForAntigen = (antigenKey) => {
-    const dots = [];
-    const seen = new Set();
-    SCHEDULE_DATA.forEach(d => {
-      if (d.ageSort > 8.5) return;
-      const antigens = COMBO_MAP[d.shortName] || [];
-      if (antigens.includes(antigenKey)) {
-        const x = weekMap[d.ageSort] || 0;
-        const dedupKey = `${x}-${d.type}`;
-        if (!seen.has(dedupKey)) {
-          seen.add(dedupKey);
-          const isCombo = antigens.length > 1;
-          // Check if this vaccine matches filters
-          const matchesAge = ageFilter === "All ages" || d.age === ageFilter;
-          const matchesType = typeFilter === "all" || d.type === typeFilter;
-          const isFunded = isFundedInState(d, stateFilter);
-          const visible = matchesAge && matchesType;
-          dots.push({ x, type: d.type, isCombo, vaccine: d, visible, isFunded });
-        }
-      }
-    });
-    return dots;
-  };
-
-  // Combo mode: direct shortName match
+  // Get dots for combo vaccine (direct shortName match)
   const getDotsForCombo = (shortName) => {
     const dots = [];
     const seen = new Set();
@@ -2161,7 +2069,7 @@ function Timeline({ viewMode = "combo", onSelect, stateFilter = "ALL", ageFilter
           const matchesType = typeFilter === "all" || d.type === typeFilter;
           const isFunded = isFundedInState(d, stateFilter);
           const visible = matchesAge && matchesType;
-          dots.push({ x, type: d.type, isCombo: false, vaccine: d, visible, isFunded });
+          dots.push({ x, type: d.type, vaccine: d, visible, isFunded });
         }
       }
     });
@@ -2181,21 +2089,9 @@ function Timeline({ viewMode = "combo", onSelect, stateFilter = "ALL", ageFilter
         {/* Rows */}
         {rows.map((row, i) => {
           const y = 56 + i * 38;
-          const dots = viewMode === "components" ? getDotsForAntigen(row.key) : getDotsForCombo(row.key);
+          const dots = getDotsForCombo(row.key);
           const handleLabelClick = onSelect ? () => {
-            // In combo mode, match by shortName; in components mode, find any item containing this antigen
-            let item;
-            if (viewMode === "combo") {
-              item = SCHEDULE_DATA.find(d => d.shortName === row.key);
-            } else {
-              item = SCHEDULE_DATA.find(d => {
-                const antigens = COMBO_MAP[d.shortName] || [];
-                return antigens.includes(row.key) && antigens.length === 1;
-              }) || SCHEDULE_DATA.find(d => {
-                const antigens = COMBO_MAP[d.shortName] || [];
-                return antigens.includes(row.key);
-              });
-            }
+            const item = SCHEDULE_DATA.find(d => d.shortName === row.key);
             if (item) onSelect(item);
           } : undefined;
           return (
@@ -2236,14 +2132,8 @@ function Timeline({ viewMode = "combo", onSelect, stateFilter = "ALL", ageFilter
                   }
                   
                   return (
-                    <g key={j}>
-                      <circle cx={xScale(d.x) + offset} cy={y} r={6.5}
-                        fill={TYPES[d.type].color} opacity={dotOpacity} />
-                      {d.isCombo && (
-                        <circle cx={xScale(d.x) + offset} cy={y} r={6.5}
-                          fill="none" stroke="#fff" strokeWidth={2} opacity={dotOpacity * 0.9} />
-                      )}
-                    </g>
+                    <circle key={j} cx={xScale(d.x) + offset} cy={y} r={6.5}
+                      fill={TYPES[d.type].color} opacity={dotOpacity} />
                   );
                 });
               })()}
@@ -3074,15 +2964,13 @@ export default function AustralianNIPSchedule() {
   const [stateFilter, setStateFilter] = useState("ALL");
   const [activeSection, setActiveSection] = useState("schedule");
   const [selectedItem, setSelectedItem] = useState(null);
-  const [viewMode, setViewMode] = useState("combo"); // "combo" or "components"
   const [openAgeGroups, setOpenAgeGroups] = useState(new Set()); // Set of open age groups, empty = all closed
   const [searchQuery, setSearchQuery] = useState("");
   const [quickFilters, setQuickFilters] = useState(new Set()); // Set of active quick filters
   const ageGroupRefs = useRef({});
 
   const filtered = useMemo(() => {
-    const source = viewMode === "components" ? expandScheduleData(SCHEDULE_DATA) : SCHEDULE_DATA;
-    return source.filter(d => {
+    return SCHEDULE_DATA.filter(d => {
       // Standard filters
       if (ageFilter !== "All ages" && d.age !== ageFilter) return false;
       if (typeFilter !== "all" && d.type !== typeFilter) return false;
@@ -3107,7 +2995,7 @@ export default function AustralianNIPSchedule() {
       
       return true;
     });
-  }, [ageFilter, typeFilter, viewMode, searchQuery, quickFilters]);
+  }, [ageFilter, typeFilter, searchQuery, quickFilters]);
 
   const grouped = useMemo(() => {
     const groups = {};
@@ -3429,38 +3317,9 @@ export default function AustralianNIPSchedule() {
               </div>
             </div>
 
-            {/* View mode toggle */}
-            <div style={{ 
-              background: "#fff", 
-              borderRadius: "12px", 
-              border: "1px solid #e8e8e8", 
-              padding: "16px 20px",
-              marginBottom: "16px",
-              display: "flex", 
-              alignItems: "center", 
-              gap: "12px",
-              flexWrap: "wrap",
-            }}>
-              <span style={{ fontSize: "13px", color: "#888", fontWeight: 600 }}>View as:</span>
-              <div style={{
-                display: "inline-flex", borderRadius: "8px", border: "1px solid #d0d0d0",
-                overflow: "hidden"
-              }}>
-                {[["combo", "Combination vaccines"], ["components", "Individual antigens"]].map(([val, label]) => (
-                  <button key={val} onClick={() => setViewMode(val)} style={{
-                    padding: "7px 14px", border: "none", fontSize: "13px", fontWeight: 600,
-                    fontFamily: "inherit", cursor: "pointer", transition: "all 0.15s ease",
-                    background: viewMode === val ? "#2d2b55" : "#fff",
-                    color: viewMode === val ? "#fff" : "#555",
-                  }}>{label}</button>
-                ))}
-              </div>
-            </div>
-
             {/* Timeline overview */}
             <div style={{ background: "#fff", borderRadius: "12px", border: "1px solid #e8e8e8", padding: "16px", overflow: "hidden", marginBottom: "12px" }}>
               <Timeline 
-                viewMode={viewMode} 
                 onSelect={setSelectedItem}
                 stateFilter={stateFilter}
                 ageFilter={ageFilter}
@@ -3474,12 +3333,6 @@ export default function AustralianNIPSchedule() {
                   {val.label}
                 </span>
               ))}
-              {viewMode === "components" && (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#666" }}>
-                  <span style={{ width: "12px", height: "12px", borderRadius: "50%", background: "#0D6E3F", display: "inline-block", border: "2px solid #fff", boxShadow: "0 0 0 1px #ccc" }} />
-                  Given as combination vaccine
-                </span>
-              )}
             </div>
             
             {/* Filter status indicator */}
@@ -3516,27 +3369,6 @@ export default function AustralianNIPSchedule() {
             <div style={{ background: "#fff", borderRadius: "12px", border: "1px solid #e8e8e8", padding: "16px", overflow: "hidden", marginBottom: "16px" }}>
               <PregnancyTimeline onSelect={setSelectedItem} />
             </div>
-
-            {/* Multivalent vaccine legend — only in components view */}
-            {viewMode === "components" && (
-              <div style={{
-                background: "#f8f8f6", borderRadius: "8px", padding: "12px 16px",
-                marginBottom: "28px", fontSize: "13px", color: "#555", lineHeight: 1.7
-              }}>
-                <strong style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#888" }}>Combination vaccines</strong>
-                <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", marginTop: "6px" }}>
-                  {MULTIVALENT_LEGEND.map((m, i) => (
-                    <span key={i}>
-                      <strong style={{ color: "#333" }}>{m.combo}</strong>{" "}
-                      <span style={{ color: "#777" }}>({m.ages})</span>
-                      <br />
-                      <span style={{ fontSize: "12px" }}>Contains: {m.contains}</span>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-            {viewMode === "combo" && <div style={{ marginBottom: "12px" }} />}
 
             {grouped.length === 0 && (
               <p style={{ color: "#999", fontSize: "14px", padding: "32px 0", textAlign: "center" }}>No vaccines match your current filters.</p>
