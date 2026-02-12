@@ -607,6 +607,11 @@ function calcCatchupSchedule(dobDate, seriesStates, stateFilter) {
       if (earliest < today) earliest = new Date(today);
 
       const isToday = earliest.toISOString().slice(0, 10) === today.toISOString().slice(0, 10);
+      
+      // Check if this dose is scheduled at its routine age (not accelerated catch-up)
+      const ageAtDose = ageInWeeks(dobDate, earliest);
+      const routineAge = series.routineAges && series.routineAges[i];
+      const isRoutineAge = routineAge && Math.abs(ageAtDose - routineAge) < 1; // within 1 week of routine age
 
       addToVisit(earliest, {
         seriesId: series.id,
@@ -617,6 +622,7 @@ function calcCatchupSchedule(dobDate, seriesStates, stateFilter) {
         type: series.type,
         route: series.route,
         isToday,
+        isRoutineAge,
       });
 
       prevDate = earliest;
@@ -917,21 +923,19 @@ function CatchupSection({ stateFilter, setStateFilter }) {
         y += 4;
       });
 
-      // "Back on schedule" banner after final visit
+      // "Back on schedule" banner before first all-routine visit
       if (result.visits.length > 0) {
-        const lastVisit = result.visits[result.visits.length - 1];
-        const lastVisitAge = ageInWeeks(dobDate, lastVisit.date);
-        const milestones = [52, 72, 192, 624];
-        const isMilestone = milestones.some(m => Math.abs(lastVisitAge - m) < 2);
-        const hasNewlyDue = lastVisit.vaccines.some(v => v.newlyDue);
+        const firstRoutineVisitIndex = result.visits.findIndex(visit => 
+          visit.vaccines.every(v => v.isRoutineAge || v.newlyDue)
+        );
         
-        if (isMilestone || hasNewlyDue) {
+        if (firstRoutineVisitIndex > 0) {
           checkPage(16);
           y += 2;
           setFill("#f0f9ff"); doc.roundedRect(ML, y, CW, 12, 2, 2, "F");
           setStroke("#bfdbfe"); doc.setLineWidth(0.5); doc.roundedRect(ML, y, CW, 12, 2, 2, "S");
           doc.setFont("helvetica","bold"); doc.setFontSize(8); setTC("#0369a1");
-          doc.text("\u2139  After this visit, the schedule returns to routine NIP timing", ML+5, y+7.5);
+          doc.text(`\u2139  Visit ${firstRoutineVisitIndex + 1} onwards: back on routine NIP schedule`, ML+5, y+7.5);
           y += 16;
         }
       }
@@ -1215,15 +1219,13 @@ function CatchupSection({ stateFilter, setStateFilter }) {
                   
                   {/* Back on schedule indicator */}
                   {result.visits.length > 0 && (() => {
-                    const lastVisit = result.visits[result.visits.length - 1];
-                    const lastVisitAge = ageInWeeks(dobDate, lastVisit.date);
-                    // Check if this is a milestone age (52w=12m, 72w=18m, 192w=4y, etc.)
-                    const milestones = [52, 72, 192, 624];
-                    const isMilestone = milestones.some(m => Math.abs(lastVisitAge - m) < 2);
-                    // Check if last visit has newly-due vaccines
-                    const hasNewlyDue = lastVisit.vaccines.some(v => v.newlyDue);
+                    // Find the first visit where ALL vaccines are at routine age or newly due
+                    const firstRoutineVisitIndex = result.visits.findIndex(visit => 
+                      visit.vaccines.every(v => v.isRoutineAge || v.newlyDue)
+                    );
                     
-                    if (isMilestone || hasNewlyDue) {
+                    if (firstRoutineVisitIndex > 0) {
+                      // Show banner BEFORE the first all-routine visit
                       return (
                         <div style={{
                           marginTop: "12px",
@@ -1239,7 +1241,7 @@ function CatchupSection({ stateFilter, setStateFilter }) {
                           gap: "8px",
                         }}>
                           <span>ℹ️</span>
-                          <span>After this visit, the schedule returns to routine NIP timing</span>
+                          <span>Visit {firstRoutineVisitIndex + 1} onwards: back on routine NIP schedule</span>
                         </div>
                       );
                     }
