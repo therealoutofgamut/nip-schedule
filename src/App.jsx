@@ -2975,11 +2975,16 @@ export default function AustralianNIPSchedule() {
       if (ageFilter !== "All ages" && d.age !== ageFilter) return false;
       if (typeFilter !== "all" && d.type !== typeFilter) return false;
       
-      // Search filter
+      // Search filter - improved to search word boundaries
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         const searchable = `${d.vaccine} ${d.shortName} ${d.brand} ${d.notes}`.toLowerCase();
-        if (!searchable.includes(query)) return false;
+        
+        // Split into words and check if any word starts with the query
+        const words = searchable.split(/[\s,\-\(\)\/]+/);
+        const matches = words.some(word => word.startsWith(query));
+        
+        if (!matches) return false;
       }
       
       // Quick filters
@@ -3215,13 +3220,33 @@ export default function AustralianNIPSchedule() {
                 typeFilter={typeFilter}
               />
             </div>
-            <div style={{ display: "flex", gap: "16px", marginBottom: "24px", flexWrap: "wrap" }}>
-              {Object.entries(TYPES).map(([key, val]) => (
-                <span key={key} style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#666" }}>
-                  <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: val.color, display: "inline-block" }} />
-                  {val.label}
-                </span>
-              ))}
+            <div style={{ marginBottom: "24px" }}>
+              <div style={{ fontSize: "11px", fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "8px" }}>
+                Vaccine Categories:
+              </div>
+              <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
+                {Object.entries(TYPES).map(([key, val]) => (
+                  <span key={key} style={{ 
+                    display: "inline-flex", 
+                    alignItems: "center", 
+                    gap: "6px", 
+                    fontSize: "13px", 
+                    color: "#333",
+                    fontWeight: 500,
+                  }}>
+                    <span style={{ 
+                      width: "12px", 
+                      height: "12px", 
+                      borderRadius: "50%", 
+                      background: val.color, 
+                      display: "inline-block",
+                      border: "1px solid rgba(0,0,0,0.1)",
+                      flexShrink: 0,
+                    }} />
+                    {val.label}
+                  </span>
+                ))}
+              </div>
             </div>
 
             {/* Search & Filter Section */}
