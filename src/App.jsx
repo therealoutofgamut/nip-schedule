@@ -954,6 +954,7 @@ function CatchupSection({ stateFilter, setStateFilter }) {
       return sessionStorage.getItem("catchup_medicalRisk") === "true";
     } catch { return false; }
   });
+  const [expandedVaccines, setExpandedVaccines] = useState({});
 
   // Persist ATSI and medical risk flags
   useEffect(() => {
@@ -1464,53 +1465,150 @@ function CatchupSection({ stateFilter, setStateFilter }) {
         </div>
       ) : (
         <>
-          {/* Series cards — only age-appropriate ones */}
-          <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#1a1a2e", margin: "0 0 12px" }}>Vaccines received</h3>
-          <p style={{ fontSize: "13px", color: "#888", margin: "0 0 16px" }}>
-            Only vaccines due at this child's age are shown. Set doses to 0 if not yet started.
-          </p>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "10px", marginBottom: "32px" }}>
-            {relevantSeries.map(series => {
-              const given = seriesStates[series.id]?.dosesGiven ?? 0;
-              const lastDate = seriesStates[series.id]?.lastDoseDate || "";
-              const maxPills = getMaxForSeries(series);
-              const t = TYPES[series.type];
-              const isRotaCutoff = series.id === "Rota" && currentAgeWeeks > series.hardCutoffDose1Weeks;
-              return (
-                <div key={series.id} style={{
-                  background: "#fff", borderRadius: "10px",
-                  border: `1.5px solid ${t.color}22`,
-                  borderLeft: `4px solid ${isRotaCutoff ? "#c0392b" : t.color}`,
-                  padding: "14px 16px",
-                  opacity: isRotaCutoff ? 0.6 : 1,
-                }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "10px" }}>
-                    <div>
-                      <div style={{ fontSize: "14px", fontWeight: 700, color: "#1a1a2e", marginBottom: "2px" }}>{series.name}</div>
-                      <div style={{ fontSize: "11px", color: "#888" }}>{series.brand} · {series.route}</div>
-                    </div>
-                    <TypeBadge type={series.type} />
-                  </div>
-                  {isRotaCutoff ? (
-                    <div style={{ fontSize: "12px", color: "#c0392b", fontWeight: 600, background: "#fff0f0", padding: "6px 10px", borderRadius: "6px" }}>
-                      Cannot start — child is too old (max 14w 6d)
-                    </div>
-                  ) : (
-                    <>
-                      <DosePills id={series.id} max={maxPills} />
-                      {given > 0 && (
-                        <div style={{ marginTop: "10px" }}>
-                          <label style={{ fontSize: "11px", color: "#888", fontWeight: 600, display: "block", marginBottom: "4px" }}>Date of last dose (optional)</label>
-                          <input type="date" value={lastDate} onChange={e => setLastDate(series.id, e.target.value)}
-                            max={today.toISOString().split("T")[0]}
-                            style={{ padding: "6px 10px", borderRadius: "6px", border: "1px solid #d0d0d0", fontSize: "13px", fontFamily: "inherit", background: "#FAFAF8", color: "#333", width: "100%", boxSizing: "border-box" }} />
+          {/* Vaccination History Section */}
+          <div style={{ 
+            background: "#fff", 
+            borderRadius: "12px", 
+            border: "1px solid #e8e8e8", 
+            padding: "20px 24px",
+            marginBottom: "32px"
+          }}>
+            <div style={{ marginBottom: "16px" }}>
+              <h3 style={{ fontSize: "16px", fontWeight: 700, color: "#1a1a2e", margin: "0 0 4px" }}>
+                Vaccination History
+              </h3>
+              <p style={{ fontSize: "13px", color: "#888", margin: "0" }}>
+                Select vaccines already received. Only age-appropriate vaccines are shown.
+              </p>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {relevantSeries.map(series => {
+                const given = seriesStates[series.id]?.dosesGiven ?? 0;
+                const lastDate = seriesStates[series.id]?.lastDoseDate || "";
+                const maxPills = getMaxForSeries(series);
+                const t = TYPES[series.type];
+                const isRotaCutoff = series.id === "Rota" && currentAgeWeeks > series.hardCutoffDose1Weeks;
+                const isExpanded = expandedVaccines[series.id];
+                
+                return (
+                  <div key={series.id} style={{
+                    background: "#FAFAF8", 
+                    borderRadius: "8px",
+                    border: `1px solid ${t.color}22`,
+                    borderLeft: `3px solid ${isRotaCutoff ? "#c0392b" : t.color}`,
+                    overflow: "hidden",
+                    opacity: isRotaCutoff ? 0.6 : 1,
+                  }}>
+                    {/* Collapsible Header */}
+                    <button
+                      onClick={() => setExpandedVaccines(prev => ({ ...prev, [series.id]: !prev[series.id] }))}
+                      style={{
+                        width: "100%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "12px 16px",
+                        background: "transparent",
+                        border: "none",
+                        cursor: isRotaCutoff ? "default" : "pointer",
+                        textAlign: "left",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "2px", flexWrap: "wrap" }}>
+                          <span style={{ fontSize: "14px", fontWeight: 700, color: "#1a1a2e" }}>
+                            {series.name}
+                          </span>
+                          <TypeBadge type={series.type} />
+                          {given > 0 && !isRotaCutoff && (
+                            <span style={{
+                              fontSize: "11px",
+                              padding: "2px 8px",
+                              borderRadius: "10px",
+                              background: t.color,
+                              color: "#fff",
+                              fontWeight: 600,
+                            }}>
+                              {given} {given === 1 ? "dose" : "doses"}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: "11px", color: "#888" }}>
+                          {series.brand} · {series.route}
+                        </div>
+                      </div>
+                      {!isRotaCutoff && (
+                        <div style={{
+                          fontSize: "20px",
+                          color: "#888",
+                          transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
+                          transition: "transform 0.2s ease",
+                          marginLeft: "8px",
+                        }}>
+                          ▼
                         </div>
                       )}
-                    </>
-                  )}
-                </div>
-              );
-            })}
+                    </button>
+
+                    {/* Expanded Content */}
+                    {isExpanded && !isRotaCutoff && (
+                      <div style={{ 
+                        padding: "0 16px 12px", 
+                        borderTop: `1px solid ${t.color}15`,
+                      }}>
+                        <div style={{ marginTop: "12px" }}>
+                          <DosePills id={series.id} max={maxPills} />
+                        </div>
+                        {given > 0 && (
+                          <div style={{ marginTop: "12px" }}>
+                            <label style={{ 
+                              fontSize: "11px", 
+                              color: "#666", 
+                              fontWeight: 600, 
+                              display: "block", 
+                              marginBottom: "4px" 
+                            }}>
+                              Date of last dose (optional)
+                            </label>
+                            <input 
+                              type="date" 
+                              value={lastDate} 
+                              onChange={e => setLastDate(series.id, e.target.value)}
+                              max={today.toISOString().split("T")[0]}
+                              style={{ 
+                                padding: "8px 10px", 
+                                borderRadius: "6px", 
+                                border: "1px solid #d0d0d0", 
+                                fontSize: "13px", 
+                                fontFamily: "inherit", 
+                                background: "#fff", 
+                                color: "#333", 
+                                width: "100%", 
+                                boxSizing: "border-box" 
+                              }} 
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Rotavirus Cutoff Warning */}
+                    {isRotaCutoff && (
+                      <div style={{ 
+                        padding: "8px 16px 12px",
+                        fontSize: "12px", 
+                        color: "#c0392b", 
+                        fontWeight: 600,
+                      }}>
+                        ⚠️ Cannot start — child is too old (max 14w 6d)
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* Results */}
