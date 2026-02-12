@@ -3153,8 +3153,85 @@ export default function AustralianNIPSchedule() {
             <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: "26px", fontWeight: 400, margin: "0 0 6px" }}>Schedule by Age</h2>
             <p style={{ color: "#777", fontSize: "14px", margin: "0 0 20px" }}>Overview of all childhood vaccines. Tap any card below for full details.</p>
 
-            {/* Search Bar */}
-            <div style={{ marginBottom: "16px" }}>
+            {/* Quick Links */}
+            <div style={{
+              background: "#fff",
+              borderRadius: "12px",
+              border: "1px solid #e8e8e8",
+              padding: "16px 20px",
+              marginBottom: "24px",
+            }}>
+              <div style={{ fontSize: "12px", color: "#888", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "10px" }}>
+                Jump to:
+              </div>
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                {[
+                  { label: "📊 Timeline", id: "timeline" },
+                  { label: "🔍 Search & Filter", id: "search" },
+                  { label: "📅 Vaccines by Age", id: "by-age" },
+                  { label: "🤰 Pregnancy", id: "pregnancy" },
+                ].map(link => (
+                  <button
+                    key={link.id}
+                    onClick={() => {
+                      const element = document.getElementById(link.id);
+                      if (element) {
+                        element.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }
+                    }}
+                    style={{
+                      padding: "8px 14px",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      border: "1px solid #e0e0e0",
+                      borderRadius: "8px",
+                      background: "#fff",
+                      color: "#2d2b55",
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                      transition: "all 0.2s ease",
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = "#f8f9fa";
+                      e.currentTarget.style.borderColor = "#2d2b55";
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = "#fff";
+                      e.currentTarget.style.borderColor = "#e0e0e0";
+                    }}
+                  >
+                    {link.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Timeline overview */}
+            <div id="timeline" style={{ background: "#fff", borderRadius: "12px", border: "1px solid #e8e8e8", padding: "16px", overflow: "hidden", marginBottom: "12px" }}>
+              <Timeline 
+                onSelect={setSelectedItem}
+                stateFilter={stateFilter}
+                ageFilter={ageFilter}
+                typeFilter={typeFilter}
+              />
+            </div>
+            <div style={{ display: "flex", gap: "16px", marginBottom: "24px", flexWrap: "wrap" }}>
+              {Object.entries(TYPES).map(([key, val]) => (
+                <span key={key} style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#666" }}>
+                  <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: val.color, display: "inline-block" }} />
+                  {val.label}
+                </span>
+              ))}
+            </div>
+
+            {/* Search & Filter Section */}
+            <div id="search">
+              <h3 style={{ fontSize: "18px", fontWeight: 700, color: "#1a1a2e", margin: "0 0 16px", paddingTop: "12px" }}>
+                Search & Filter Vaccines
+              </h3>
+
+              {/* Search Bar */}
+              <div style={{ marginBottom: "16px" }}>
               <input
                 type="text"
                 placeholder="Search vaccines by name, brand, or keyword... (press / to focus)"
@@ -3317,24 +3394,6 @@ export default function AustralianNIPSchedule() {
               </div>
             </div>
 
-            {/* Timeline overview */}
-            <div style={{ background: "#fff", borderRadius: "12px", border: "1px solid #e8e8e8", padding: "16px", overflow: "hidden", marginBottom: "12px" }}>
-              <Timeline 
-                onSelect={setSelectedItem}
-                stateFilter={stateFilter}
-                ageFilter={ageFilter}
-                typeFilter={typeFilter}
-              />
-            </div>
-            <div style={{ display: "flex", gap: "16px", marginBottom: "16px", flexWrap: "wrap" }}>
-              {Object.entries(TYPES).map(([key, val]) => (
-                <span key={key} style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#666" }}>
-                  <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: val.color, display: "inline-block" }} />
-                  {val.label}
-                </span>
-              ))}
-            </div>
-            
             {/* Filter status indicator */}
             {(stateFilter !== "ALL" || ageFilter !== "All ages" || typeFilter !== "all") && (
               <div style={{ 
@@ -3342,7 +3401,7 @@ export default function AustralianNIPSchedule() {
                 border: "1px solid #F4D89D",
                 borderRadius: "8px", 
                 padding: "8px 12px", 
-                marginBottom: "16px",
+                marginBottom: "20px",
                 fontSize: "12px",
                 color: "#8B6914",
                 display: "flex",
@@ -3358,18 +3417,10 @@ export default function AustralianNIPSchedule() {
                 </span>
               </div>
             )}
-
-            {/* Pregnancy timeline */}
-            <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#1a1a2e", margin: "24px 0 10px" }}>
-              Vaccines in Pregnancy
-            </h3>
-            <p style={{ fontSize: "13px", color: "#777", margin: "0 0 12px", lineHeight: 1.5 }}>
-              Timing windows by gestational age. Darker bars = recommended window. Lighter extensions = can still be given if missed.
-            </p>
-            <div style={{ background: "#fff", borderRadius: "12px", border: "1px solid #e8e8e8", padding: "16px", overflow: "hidden", marginBottom: "16px" }}>
-              <PregnancyTimeline onSelect={setSelectedItem} />
             </div>
 
+            {/* Vaccines by Age Group Section */}
+            <div id="by-age">
             {grouped.length === 0 && (
               <p style={{ color: "#999", fontSize: "14px", padding: "32px 0", textAlign: "center" }}>No vaccines match your current filters.</p>
             )}
@@ -3505,6 +3556,20 @@ export default function AustralianNIPSchedule() {
                 </div>
               );
             })}
+            </div>
+
+            {/* Pregnancy timeline - moved to bottom */}
+            <div id="pregnancy" style={{ paddingTop: "32px" }}>
+              <h3 style={{ fontSize: "18px", fontWeight: 700, color: "#1a1a2e", margin: "0 0 10px" }}>
+                Vaccines in Pregnancy
+              </h3>
+              <p style={{ fontSize: "13px", color: "#777", margin: "0 0 12px", lineHeight: 1.5 }}>
+                Timing windows by gestational age. Darker bars = recommended window. Lighter extensions = can still be given if missed.
+              </p>
+              <div style={{ background: "#fff", borderRadius: "12px", border: "1px solid #e8e8e8", padding: "16px", overflow: "hidden", marginBottom: "16px" }}>
+                <PregnancyTimeline onSelect={setSelectedItem} />
+              </div>
+            </div>
           </section>
         )}
 
