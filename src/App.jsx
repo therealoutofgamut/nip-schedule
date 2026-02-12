@@ -1118,6 +1118,37 @@ function CatchupSection({ stateFilter, setStateFilter }) {
 
       const checkPage = (need) => { if (y + need > PAGE_BOTTOM) { doc.addPage(); y = 20; } };
 
+      // Vaccines received overview
+      const receivedVaccines = Object.entries(seriesStates)
+        .filter(([id, state]) => state.dosesGiven > 0)
+        .map(([id, state]) => {
+          const series = CATCHUP_SERIES.find(s => s.id === id);
+          return { series, state };
+        })
+        .filter(item => item.series); // Only include series we recognize
+
+      if (receivedVaccines.length > 0) {
+        checkPage(16 + receivedVaccines.length * 6);
+        setFill("#F0F9FF"); doc.roundedRect(ML, y, CW, 10, 2, 2, "F");
+        setStroke("#BFDBFE"); doc.setLineWidth(0.5); doc.roundedRect(ML, y, CW, 10, 2, 2, "S");
+        doc.setFont("helvetica","bold"); doc.setFontSize(9); setTC("#0369A1");
+        doc.text(`Vaccines Already Received (${receivedVaccines.length} series)`, ML+5, y+6.5);
+        y += 12;
+
+        // List received vaccines
+        receivedVaccines.forEach((item, i) => {
+          checkPage(6);
+          doc.setFont("helvetica","normal"); doc.setFontSize(8); setTC("#555555");
+          const doseText = item.state.dosesGiven === 1 ? "1 dose" : `${item.state.dosesGiven} doses`;
+          const dateText = item.state.lastDoseDate 
+            ? ` (last: ${new Date(item.state.lastDoseDate).toLocaleDateString("en-AU", { day:"numeric", month:"short", year:"numeric" })})`
+            : "";
+          doc.text(`\u2022  ${item.series.name}: ${doseText}${dateText}`, ML+5, y+4);
+          y += 6;
+        });
+        y += 6;
+      }
+
       const drawVisitHeader = (label, dateStr, ageStr, color) => {
         checkPage(14);
         const [r,g,b] = hex2rgb(color);
