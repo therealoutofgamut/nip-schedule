@@ -3075,7 +3075,7 @@ export default function AustralianNIPSchedule() {
   const [activeSection, setActiveSection] = useState("schedule");
   const [selectedItem, setSelectedItem] = useState(null);
   const [viewMode, setViewMode] = useState("combo"); // "combo" or "components"
-  const [openAgeGroups, setOpenAgeGroups] = useState(null); // null = all open; Set = explicit
+  const [openAgeGroups, setOpenAgeGroups] = useState(new Set()); // Set of open age groups, empty = all closed
 
   const filtered = useMemo(() => {
     const source = viewMode === "components" ? expandScheduleData(SCHEDULE_DATA) : SCHEDULE_DATA;
@@ -3196,9 +3196,43 @@ export default function AustralianNIPSchedule() {
             <p style={{ color: "#777", fontSize: "14px", margin: "0 0 20px" }}>Overview of all childhood vaccines. Tap any card below for full details.</p>
 
             {/* Filter dropdowns */}
-            <div style={{ marginBottom: "20px" }}>
-              <div style={{ fontSize: "13px", color: "#888", fontWeight: 600, marginBottom: "8px" }}>
-                Filter by:
+            <div style={{ 
+              background: "#fff", 
+              borderRadius: "12px", 
+              border: "1px solid #e8e8e8", 
+              padding: "16px 20px",
+              marginBottom: "20px" 
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "12px" }}>
+                <div style={{ fontSize: "13px", color: "#888", fontWeight: 600 }}>
+                  Filter by:
+                </div>
+                <button
+                  onClick={() => {
+                    const allAges = grouped.map(([age]) => age);
+                    if (openAgeGroups.size === allAges.length) {
+                      setOpenAgeGroups(new Set()); // Collapse all
+                    } else {
+                      setOpenAgeGroups(new Set(allAges)); // Expand all
+                    }
+                  }}
+                  style={{
+                    padding: "6px 12px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    color: "#555",
+                    background: "#f8f8f8",
+                    border: "1px solid #d0d0d0",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                    transition: "all 0.15s ease",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "#eeeeee"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "#f8f8f8"; }}
+                >
+                  {openAgeGroups.size === grouped.length ? "Collapse all" : "Expand all"}
+                </button>
               </div>
               <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
                 <select value={stateFilter} onChange={e => setStateFilter(e.target.value)} style={selectStyle}>
@@ -3216,7 +3250,17 @@ export default function AustralianNIPSchedule() {
             </div>
 
             {/* View mode toggle */}
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+            <div style={{ 
+              background: "#fff", 
+              borderRadius: "12px", 
+              border: "1px solid #e8e8e8", 
+              padding: "16px 20px",
+              marginBottom: "16px",
+              display: "flex", 
+              alignItems: "center", 
+              gap: "12px",
+              flexWrap: "wrap",
+            }}>
               <span style={{ fontSize: "13px", color: "#888", fontWeight: 600 }}>View as:</span>
               <div style={{
                 display: "inline-flex", borderRadius: "8px", border: "1px solid #d0d0d0",
@@ -3226,7 +3270,7 @@ export default function AustralianNIPSchedule() {
                   <button key={val} onClick={() => setViewMode(val)} style={{
                     padding: "7px 14px", border: "none", fontSize: "13px", fontWeight: 600,
                     fontFamily: "inherit", cursor: "pointer", transition: "all 0.15s ease",
-                    background: viewMode === val ? "#1a1a2e" : "#fff",
+                    background: viewMode === val ? "#2d2b55" : "#fff",
                     color: viewMode === val ? "#fff" : "#555",
                   }}>{label}</button>
                 ))}
@@ -3318,25 +3362,52 @@ export default function AustralianNIPSchedule() {
               <p style={{ color: "#999", fontSize: "14px", padding: "32px 0", textAlign: "center" }}>No vaccines match your current filters.</p>
             )}
 
+            {grouped.length > 0 && (
+              <div style={{ 
+                display: "flex", 
+                alignItems: "baseline", 
+                justifyContent: "space-between",
+                marginBottom: "16px",
+                paddingBottom: "8px",
+                borderBottom: "2px solid #e8e8e8",
+              }}>
+                <h3 style={{ fontSize: "16px", fontWeight: 700, color: "#1a1a2e", margin: 0 }}>
+                  Vaccines by Age Group
+                </h3>
+                <span style={{ fontSize: "12px", color: "#888" }}>
+                  {filtered.length} {filtered.length === 1 ? "vaccine" : "vaccines"} · {grouped.length} {grouped.length === 1 ? "age group" : "age groups"}
+                </span>
+              </div>
+            )}
+
             {grouped.map(([age, items]) => {
-              const isOpen = openAgeGroups === null || openAgeGroups.has(age);
+              const isOpen = openAgeGroups.has(age);
               const toggle = () => {
                 setOpenAgeGroups(prev => {
-                  const base = prev === null ? new Set(grouped.map(([a]) => a)) : new Set(prev);
+                  const base = new Set(prev);
                   if (base.has(age)) base.delete(age); else base.add(age);
                   return base;
                 });
               };
               return (
-                <div key={age} style={{ marginBottom: "12px" }}>
+                <div key={age} style={{ marginBottom: "8px" }}>
                   <button onClick={toggle} style={{
-                    display: "flex", alignItems: "center", gap: "8px",
-                    background: "none", border: "none", cursor: "pointer",
-                    padding: "0 0 8px", marginBottom: isOpen ? "10px" : "0",
-                    borderBottom: `2px solid ${isOpen ? "#2d2b55" : "#e0e0e0"}`,
+                    display: "flex", alignItems: "center", gap: "10px",
+                    background: isOpen ? "#f8f9fa" : "#fff",
+                    border: "1px solid #e0e0e0",
+                    borderRadius: "8px",
+                    cursor: "pointer",
+                    padding: "12px 16px",
+                    marginBottom: isOpen ? "8px" : "0",
                     width: "100%", textAlign: "left", fontFamily: "inherit",
-                    transition: "border-color 0.2s",
-                  }}>
+                    transition: "all 0.2s ease",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "#f8f9fa"; e.currentTarget.style.borderColor = "#2d2b55"; }}
+                  onMouseLeave={e => { 
+                    e.currentTarget.style.background = isOpen ? "#f8f9fa" : "#fff"; 
+                    e.currentTarget.style.borderColor = "#e0e0e0";
+                  }}
+                  >
                     <svg width="12" height="12" viewBox="0 0 12 12" style={{
                       flexShrink: 0,
                       transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
@@ -3346,20 +3417,24 @@ export default function AustralianNIPSchedule() {
                       <polyline points="3,2 9,6 3,10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                     <span style={{
-                      fontSize: "16px", fontWeight: 700, color: "#1a1a2e",
+                      fontSize: "15px", fontWeight: 700, color: "#1a1a2e",
                     }}>{age}</span>
                     <span style={{
                       marginLeft: "auto",
-                      fontSize: "11px", fontWeight: 700,
-                      padding: "2px 8px", borderRadius: "12px",
-                      background: isOpen ? "#1a1a2e" : "#e8e8e8",
-                      color: isOpen ? "#fff" : "#888",
+                      fontSize: "11px", fontWeight: 600,
+                      padding: "3px 10px", borderRadius: "12px",
+                      background: isOpen ? "#2d2b55" : "#e8e8e8",
+                      color: isOpen ? "#fff" : "#666",
                       transition: "all 0.2s",
-                    }}>{items.length}</span>
+                    }}>{items.length} {items.length === 1 ? "vaccine" : "vaccines"}</span>
                   </button>
-                  {isOpen && items.map((item, i) => (
-                    <VaccineCard key={i} item={item} onClick={setSelectedItem} selectedState={stateFilter} />
-                  ))}
+                  {isOpen && (
+                    <div style={{ paddingLeft: "8px" }}>
+                      {items.map((item, i) => (
+                        <VaccineCard key={i} item={item} onClick={setSelectedItem} selectedState={stateFilter} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
