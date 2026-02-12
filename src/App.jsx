@@ -2,6 +2,10 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Analytics } from "@vercel/analytics/react";
 
+// Version tracking
+const SITE_VERSION = "Feb 2026";  // Last code update
+const SCHEDULE_VERSION = "Jan 2026";  // Last NIP schedule data revision
+
 const SCHEDULE_DATA = [
   // Birth
   { vaccine: "Hepatitis B", shortName: "HepB", age: "Birth", ageSort: 0, type: "routine", brand: "Engerix B / HB Vax II", route: "IM", notes: "Give within 24 hours of birth (must be within 7 days). No catch-up required if missed." },
@@ -1274,7 +1278,7 @@ function CatchupSection({ stateFilter, setStateFilter }) {
 
 
       // Footer
-      const H = 297; const footerY = H - 22;
+      const H = 297; const footerY = H - 25;
       const pageCount = doc.getNumberOfPages();
       for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
@@ -1282,9 +1286,11 @@ function CatchupSection({ stateFilter, setStateFilter }) {
         doc.setFont("helvetica","bold"); doc.setFontSize(7.5); setTC("#c0392b");
         doc.text("Always verify immunisation history in AIR before administering.", ML, footerY+2);
         doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(170,170,170);
-        doc.text(`Data: Australian Immunisation Handbook & NIP Schedule (Jan 2026)  \u00B7  nip.terrific.website`, ML, footerY+7);
+        doc.text(`Data: Australian Immunisation Handbook & NIP Schedule (${SCHEDULE_VERSION})  \u00B7  nip.terrific.website`, ML, footerY+7);
+        doc.setFont("helvetica","normal"); doc.setFontSize(6.5); doc.setTextColor(200,200,200);
+        doc.text(`Schedule data: ${SCHEDULE_VERSION} \u00B7 Site version: ${SITE_VERSION}`, ML, footerY+11);
         doc.setFont("helvetica","italic"); doc.setFontSize(7); doc.setTextColor(187,187,187);
-        doc.text("Dr Marc Theilhaber \u00B7 Dept of Respiratory Medicine \u00B7 Monash Children\u2019s Hospital", ML, footerY+11);
+        doc.text("Dr Marc Theilhaber \u00B7 Dept of Respiratory Medicine \u00B7 Monash Children\u2019s Hospital", ML, footerY+15);
         doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(187,187,187);
         doc.text(`Page ${i} of ${pageCount}`, W-MR, footerY+2, { align: "right" });
       }
@@ -1931,7 +1937,7 @@ function Modal({ item, onClose }) {
           )}
         </div>
         <div style={{ marginTop: "16px", paddingTop: "14px", borderTop: "1px solid #eee", fontSize: "11px", color: "#999" }}>
-          Source: Australian Immunisation Handbook · NIP Schedule Jan 2026
+          Source: Australian Immunisation Handbook · NIP Schedule {SCHEDULE_VERSION}
         </div>
       </div>
     </div>
@@ -2655,7 +2661,7 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
 
       // -- FOOTER -------------------------------------------------------
       // Footer on last page
-      const footerY = H - 22;
+      const footerY = H - 25;
       setStroke("#E0E0E0");
       doc.setLineWidth(0.3);
       doc.line(ML, footerY - 2, W - MR, footerY - 2);
@@ -2666,11 +2672,15 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
 
       doc.setFont("helvetica", "normal"); doc.setFontSize(7);
       setTextColor("#AAAAAA");
-      doc.text(`Data source: Australian Immunisation Handbook & NIP Schedule (Jan 2026)  \u00B7  nip.terrific.website`, ML, footerY + 7);
+      doc.text(`Data source: Australian Immunisation Handbook & NIP Schedule (${SCHEDULE_VERSION})  \u00B7  nip.terrific.website`, ML, footerY + 7);
+
+      doc.setFont("helvetica", "normal"); doc.setFontSize(6.5);
+      setTextColor("#CCCCCC");
+      doc.text(`Schedule data: ${SCHEDULE_VERSION} \u00B7 Site version: ${SITE_VERSION}`, ML, footerY + 11);
 
       doc.setFont("helvetica", "italic"); doc.setFontSize(7);
       setTextColor("#BBBBBB");
-      doc.text("Dr Marc Theilhaber \u00B7 Dept of Respiratory Medicine \u00B7 Monash Children's Hospital", ML, footerY + 12);
+      doc.text("Dr Marc Theilhaber \u00B7 Dept of Respiratory Medicine \u00B7 Monash Children's Hospital", ML, footerY + 15);
 
       // Page numbers on all pages
       const pageCount = doc.getNumberOfPages();
@@ -3270,9 +3280,12 @@ export default function AustralianNIPSchedule() {
           </a>{" "}and{" "}
           <a href="https://immunisationhandbook.health.gov.au" target="_blank" rel="noopener" style={{ color: "#0D6E3F" }}>
             Australian Immunisation Handbook
-          </a>{" "}(Jan 2026).
+          </a>{" "}({SCHEDULE_VERSION}).
         </p>
         <p style={{ margin: "0 0 8px" }}>Built to support, not replace, clinical judgment. For informational purposes only.</p>
+        <p style={{ margin: "0 0 8px", fontSize: "11px", color: "#aaa" }}>
+          Schedule data: {SCHEDULE_VERSION} · Site version: {SITE_VERSION}
+        </p>
         <p style={{ margin: 0, borderTop: "1px solid #eee", paddingTop: "10px", fontWeight: 600, color: "#777", lineHeight: 1.8 }}>
           Dr Marc Theilhaber<br />
           Dept of Respiratory Medicine · Monash Children's Hospital
