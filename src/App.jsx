@@ -498,7 +498,7 @@ function getRequiredDosesForSeries(series, ageWeeks, dosesGiven, state) {
   return series.maxDoses;
 }
 
-function calcCatchupSchedule(dobDate, seriesStates, stateFilter) {
+function calcCatchupSchedule(dobDate, seriesStates, stateFilter, isATSI, hasMedicalRisk) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const currentAgeWeeks = ageInWeeks(dobDate, today);
@@ -515,7 +515,12 @@ function calcCatchupSchedule(dobDate, seriesStates, stateFilter) {
   };
 
   CATCHUP_SERIES.forEach(series => {
+    // Filter by state funding
     if (series.statesOnly && stateFilter !== "ALL" && !series.statesOnly.includes(stateFilter)) return;
+    
+    // Filter by type
+    if (series.type === "indigenous" && !isATSI) return;
+    if (series.type === "at-risk" && !hasMedicalRisk) return;
 
     const state = seriesStates[series.id] || { dosesGiven: 0, lastDoseDate: null };
     const { dosesGiven } = state;
@@ -534,6 +539,11 @@ function calcCatchupSchedule(dobDate, seriesStates, stateFilter) {
         ageLabel: formatAgeAtVisit(dobDate, dueDate),
       });
       return;
+    }
+    
+    // Check maximum age for catch-up (e.g., HPV only to age 26)
+    if (dosesGiven === 0 && series.maxAgeWeeks && currentAgeWeeks > series.maxAgeWeeks) {
+      return; // Too old for this vaccine, skip it
     }
 
     let ageAtFirstDoseWeeks;
@@ -652,6 +662,14 @@ function calcCatchupSchedule(dobDate, seriesStates, stateFilter) {
     const ageAtVisit = ageInWeeks(dobDate, visitDate);
     
     CATCHUP_SERIES.forEach(series => {
+      // Filter by type and state
+      if (series.type === "indigenous" && !isATSI) return;
+      if (series.type === "at-risk" && !hasMedicalRisk) return;
+      if (series.statesOnly && stateFilter !== "ALL" && !series.statesOnly.includes(stateFilter)) return;
+      
+      // Check maximum age for catch-up
+      if (series.maxAgeWeeks && currentAgeWeeks > series.maxAgeWeeks) return;
+      
       // Skip if already scheduled for this visit
       const visitKey = visitDate.toISOString().slice(0, 10);
       const alreadyScheduled = visits[visitKey]?.vaccines.some(d => d.seriesId === series.id);
@@ -719,7 +737,7 @@ function calcCatchupSchedule(dobDate, seriesStates, stateFilter) {
       
       toMove.forEach(vaccine => {
         // Find when this vaccine can actually be given based on its series rules
-        const series = relevantSeries.find(s => s.id === vaccine.seriesId);
+        const series = CATCHUP_SERIES.find(s => s.id === vaccine.seriesId);
         if (!series) return;
         
         let targetDate = new Date(nextEarliest);
@@ -811,7 +829,7 @@ function calcCatchupSchedule(dobDate, seriesStates, stateFilter) {
             
             // Add to new visit at safe date
             let targetDate = new Date(minDate);
-            const series = relevantSeries.find(s => s.id === vaccine.seriesId);
+            const series = CATCHUP_SERIES.find(s => s.id === vaccine.seriesId);
             
             // Respect routine ages
             if (series && series.routineAges && series.routineAges[vaccine.doseNum - 1] !== undefined) {
@@ -989,8 +1007,13 @@ function CatchupSection({ stateFilter, setStateFilter }) {
 
   const result = useMemo(() => {
     if (!dobDate) return null;
-    return calcCatchupSchedule(dobDate, seriesStates, stateFilter);
-  }, [dobDate, seriesStates, stateFilter]);
+    try {
+      return calcCatchupSchedule(dobDate, seriesStates, stateFilter, isATSI, hasMedicalRisk);
+    } catch (error) {
+      console.error("Error calculating catch-up schedule:", error);
+      return { visits: [], warnings: [{ id: "error", name: "Calculation Error", type: "error", msg: error.message || "An error occurred calculating the schedule" }], complete: [], notYetDue: [] };
+    }
+  }, [dobDate, seriesStates, stateFilter, isATSI, hasMedicalRisk]);
 
   const setDoses = (id, n) => setSeriesStates(prev => ({ ...prev, [id]: { ...prev[id], dosesGiven: n, lastDoseDate: n === 0 ? null : (prev[id]?.lastDoseDate || null) } }));
   const setLastDate = (id, val) => setSeriesStates(prev => ({ ...prev, [id]: { ...prev[id], lastDoseDate: val || null } }));
