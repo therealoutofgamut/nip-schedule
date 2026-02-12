@@ -373,6 +373,7 @@ const CATCHUP_SERIES = [
     minIntervalWeeks: 4,
     minAgeFirstDoseWeeks: 52, // 12 months
     routineAges: [52, 72], // 12m, 18m
+    isLive: true,
     note: "Dose 1 from 12 months. Dose 2 ideally at 18m as MMRV (adds varicella). Min 4 weeks between doses.",
   },
   {
@@ -386,7 +387,8 @@ const CATCHUP_SERIES = [
     minIntervalWeeks: 4,
     minAgeFirstDoseWeeks: 52,
     routineAges: [72, 76], // 18m for dose 1 (MMRV), 18m+ for dose 2
-    note: "2nd dose recommended but not NIP-funded. Min 4 weeks after first dose (usually given as MMRV at 18m).",
+    isLive: true,
+    note: "2nd dose recommended but not NIP-funded (cost to patient). Min 4 weeks after first dose (usually given as MMRV at 18m).",
   },
   {
     id: "MenACWY",
@@ -408,11 +410,13 @@ const CATCHUP_SERIES = [
     type: "recommended",
     route: "IM",
     maxDoses: 3, // infant series; adolescents need only 2
-    minIntervalWeeks: 8,
+    minIntervalWeeks: null, // Age-dependent - see getMinIntervalForMenB()
     minAgeFirstDoseWeeks: 6,
     routineAges: [6, 16, 52], // 6w, 4m, 12m (ATSI schedule)
     ageDependentDoses: true,
-    note: "Infant series (< 2y): 3 doses. Adolescents 15–19y: 2 doses ≥8 weeks apart. Not NIP-funded except ATSI and some states.",
+    ageDependentInterval: true, // Flag to use age-based interval calculation
+    isLive: false,
+    note: "Infant series (< 2y): 3 doses. Adolescents 15–19y: 2 doses. Not NIP-funded except ATSI and some states (SA, QLD, NT for all infants). Private cost ~$110-135/dose. Intervals: 6w for <6m, 8w for 6-23m, 4w for ≥2y.",
   },
   {
     id: "HepA",
@@ -438,8 +442,9 @@ const CATCHUP_SERIES = [
     ageDependentDoses: true,
     minIntervalWeeks: 24, // 6 months (2-dose schedule)
     minAgeFirstDoseWeeks: 624, // 12y — Year 7 context
+    maxAgeWeeks: 1352, // 26 years (26 * 52)
     routineAges: [624, 650], // Year 7, 6 months later
-    note: "< 15y at first dose: 2 doses min 6 months apart. ≥ 15y or immunocompromised: 3 doses (0, 4–8w, 6m). Funded to age 25 for catch-up.",
+    note: "< 15y at first dose: 2 doses min 6 months apart. ≥ 15y or immunocompromised: 3 doses (0, 4–8w, 6m). NIP-funded catch-up to age 26 (up to and including 25 years).",
   },
   {
     id: "dTpa",
@@ -573,7 +578,13 @@ function calcCatchupSchedule(dobDate, seriesStates, stateFilter) {
       let earliest = new Date(prevDate);
 
       if (i > 0 || lastDoseDate) {
-        const minAfterPrev = addWeeks(prevDate, series.minIntervalWeeks || 4);
+        // Use age-dependent interval for MenB
+        let minInterval = series.minIntervalWeeks || 4;
+        if (series.ageDependentInterval && series.id === "MenB") {
+          const ageAtThisDose = ageInWeeks(dobDate, earliest);
+          minInterval = getMinIntervalForMenB(ageAtThisDose);
+        }
+        const minAfterPrev = addWeeks(prevDate, minInterval);
         if (minAfterPrev > earliest) earliest = minAfterPrev;
       }
 
@@ -612,6 +623,9 @@ function calcCatchupSchedule(dobDate, seriesStates, stateFilter) {
       const ageAtDose = ageInWeeks(dobDate, earliest);
       const routineAge = series.routineAges && series.routineAges[i];
       const isRoutineAge = routineAge && Math.abs(ageAtDose - routineAge) < 1; // within 1 week of routine age
+      
+      // Determine if this vaccine is funded for this child
+      const isFunded = isSeriesFunded(series, stateFilter, isATSI, hasMedicalRisk);
 
       addToVisit(earliest, {
         seriesId: series.id,
@@ -623,6 +637,8 @@ function calcCatchupSchedule(dobDate, seriesStates, stateFilter) {
         route: series.route,
         isToday,
         isRoutineAge,
+        isLive: series.isLive || false,
+        isFunded,
       });
 
       prevDate = earliest;
@@ -655,6 +671,7 @@ function calcCatchupSchedule(dobDate, seriesStates, stateFilter) {
         // This is a newly-due vaccine at this visit - add dose 1
         if (dosesGiven === 0) {
           const isToday = visitDate.toISOString().slice(0, 10) === today.toISOString().slice(0, 10);
+          const isFunded = isSeriesFunded(series, stateFilter, isATSI, hasMedicalRisk);
           addToVisit(visitDate, {
             seriesId: series.id,
             name: series.name,
@@ -665,11 +682,159 @@ function calcCatchupSchedule(dobDate, seriesStates, stateFilter) {
             route: series.route,
             isToday,
             newlyDue: true, // mark as newly due, not catch-up
+            isLive: series.isLive || false,
+            isFunded,
           });
         }
       }
     });
   });
+
+  // ────────────────────────────────────────────────────────────────────────
+  // POST-PROCESSING: Apply 4-injection limit and live vaccine spacing rules
+  // ────────────────────────────────────────────────────────────────────────
+  
+  // Step 1: Split visits with >4 injectable vaccines
+  const splitVisitsForInjectionLimit = () => {
+    const visitDates = Object.keys(visits).sort((a, b) => new Date(a) - new Date(b));
+    
+    for (const dateKey of visitDates) {
+      const visit = visits[dateKey];
+      const injectables = visit.vaccines.filter(v => v.route === "IM" || v.route === "SC");
+      
+      if (injectables.length <= 4) continue;
+      
+      // Keep first 4 injectables, move rest to new visit
+      const toKeep = injectables.slice(0, 4);
+      const toMove = injectables.slice(4);
+      
+      // Remove moved vaccines from current visit
+      visit.vaccines = visit.vaccines.filter(v => 
+        v.route === "Oral" || toKeep.some(k => k.seriesId === v.seriesId && k.doseNum === v.doseNum)
+      );
+      
+      // Schedule moved vaccines to earliest safe date (4 weeks after current visit)
+      const currentDate = new Date(dateKey);
+      const nextEarliest = addWeeks(currentDate, 4);
+      
+      toMove.forEach(vaccine => {
+        // Find when this vaccine can actually be given based on its series rules
+        const series = relevantSeries.find(s => s.id === vaccine.seriesId);
+        if (!series) return;
+        
+        let targetDate = new Date(nextEarliest);
+        
+        // If this is not the first dose, respect minimum interval from previous dose
+        if (vaccine.doseNum > 1) {
+          // Find the previous dose date
+          let prevDoseDate = null;
+          for (const vd of Object.keys(visits).sort((a, b) => new Date(a) - new Date(b))) {
+            const prevVaccine = visits[vd].vaccines.find(v => 
+              v.seriesId === vaccine.seriesId && v.doseNum === vaccine.doseNum - 1
+            );
+            if (prevVaccine) {
+              prevDoseDate = new Date(vd);
+              break;
+            }
+          }
+          
+          if (prevDoseDate) {
+            let minInterval = series.minIntervalWeeks || 4;
+            if (series.ageDependentInterval && series.id === "MenB") {
+              const ageAtDose = ageInWeeks(dobDate, targetDate);
+              minInterval = getMinIntervalForMenB(ageAtDose);
+            }
+            const minDate = addWeeks(prevDoseDate, minInterval);
+            if (minDate > targetDate) targetDate = minDate;
+          }
+        }
+        
+        // Respect routine ages
+        if (series.routineAges && series.routineAges[vaccine.doseNum - 1] !== undefined) {
+          const routineDate = addWeeks(dobDate, series.routineAges[vaccine.doseNum - 1]);
+          if (routineDate > targetDate) targetDate = routineDate;
+        }
+        
+        if (targetDate < today) targetDate = new Date(today);
+        
+        const newDateKey = targetDate.toISOString().slice(0, 10);
+        addToVisit(targetDate, { ...vaccine, isToday: newDateKey === today.toISOString().slice(0, 10) });
+      });
+    }
+  };
+  
+  // Step 2: Enforce live vaccine spacing (same day or ≥4 weeks apart)
+  const enforceLiveVaccineSpacing = () => {
+    const visitDates = Object.keys(visits).sort((a, b) => new Date(a) - new Date(b));
+    
+    for (let i = 0; i < visitDates.length; i++) {
+      const dateKey1 = visitDates[i];
+      const visit1 = visits[dateKey1];
+      const liveVaccines1 = visit1.vaccines.filter(v => v.isLive);
+      
+      if (liveVaccines1.length === 0) continue;
+      
+      // Check all subsequent visits within 4 weeks
+      for (let j = i + 1; j < visitDates.length; j++) {
+        const dateKey2 = visitDates[j];
+        const date1 = new Date(dateKey1);
+        const date2 = new Date(dateKey2);
+        const weeksBetween = (date2 - date1) / (1000 * 60 * 60 * 24 * 7);
+        
+        if (weeksBetween >= 4) break; // Far enough apart
+        
+        const visit2 = visits[dateKey2];
+        const liveVaccines2 = visit2.vaccines.filter(v => v.isLive);
+        
+        if (liveVaccines2.length === 0) continue;
+        
+        // We have live vaccines <4 weeks apart. Try to combine to same visit if possible.
+        const visit1Injectables = visit1.vaccines.filter(v => v.route === "IM" || v.route === "SC");
+        const visit2Injectables = visit2.vaccines.filter(v => v.route === "IM" || v.route === "SC");
+        
+        // Can we move visit2's live vaccines to visit1?
+        if (visit1Injectables.length + liveVaccines2.length <= 4) {
+          // Yes! Move them
+          liveVaccines2.forEach(vaccine => {
+            visit1.vaccines.push({ ...vaccine, isToday: dateKey1 === today.toISOString().slice(0, 10) });
+          });
+          visit2.vaccines = visit2.vaccines.filter(v => !v.isLive);
+          if (visit2.vaccines.length === 0) delete visits[dateKey2];
+        } else {
+          // Can't combine. Push visit2 to ≥4 weeks after visit1
+          const minDate = addWeeks(date1, 4);
+          liveVaccines2.forEach(vaccine => {
+            // Remove from visit2
+            visit2.vaccines = visit2.vaccines.filter(v => 
+              !(v.seriesId === vaccine.seriesId && v.doseNum === vaccine.doseNum)
+            );
+            
+            // Add to new visit at safe date
+            let targetDate = new Date(minDate);
+            const series = relevantSeries.find(s => s.id === vaccine.seriesId);
+            
+            // Respect routine ages
+            if (series && series.routineAges && series.routineAges[vaccine.doseNum - 1] !== undefined) {
+              const routineDate = addWeeks(dobDate, series.routineAges[vaccine.doseNum - 1]);
+              if (routineDate > targetDate) targetDate = routineDate;
+            }
+            
+            if (targetDate < today) targetDate = new Date(today);
+            const newDateKey = targetDate.toISOString().slice(0, 10);
+            addToVisit(targetDate, { ...vaccine, isToday: newDateKey === today.toISOString().slice(0, 10) });
+          });
+          
+          if (visit2.vaccines.length === 0) delete visits[dateKey2];
+        }
+      }
+    }
+  };
+  
+  // Apply post-processing
+  splitVisitsForInjectionLimit();
+  enforceLiveVaccineSpacing();
+  // Run split again in case live vaccine moves created new >4 visits
+  splitVisitsForInjectionLimit();
 
   const sortedVisits = Object.values(visits).sort((a, b) => a.date - b.date);
   return { visits: sortedVisits, warnings, complete, notYetDue };
@@ -695,6 +860,53 @@ function formatAgeAtVisit(dobDate, visitDate) {
   return mths > 0 ? `${yrs}y ${mths}m old` : `${yrs}y old`;
 }
 
+// Calculate minimum interval for MenB based on child's age at the dose
+function getMinIntervalForMenB(ageWeeks) {
+  if (ageWeeks < 26) return 6; // <6 months: 6 weeks
+  if (ageWeeks < 104) return 8; // 6-23 months: 8 weeks
+  return 4; // ≥2 years: 4 weeks
+}
+
+// Determine if a vaccine series is NIP-funded for this child
+function isSeriesFunded(series, stateFilter, isATSI, hasMedicalRisk) {
+  // Routine vaccines are always NIP-funded
+  if (series.type === "routine") {
+    // Check state restrictions (e.g., HepA only in certain states)
+    if (series.statesOnly && stateFilter !== "ALL" && !series.statesOnly.includes(stateFilter)) {
+      return false;
+    }
+    return true;
+  }
+  
+  // Indigenous vaccines are NIP-funded for ATSI children in specified states
+  if (series.type === "indigenous") {
+    if (!isATSI) return false;
+    if (series.statesOnly && stateFilter !== "ALL" && !series.statesOnly.includes(stateFilter)) {
+      return false;
+    }
+    return true;
+  }
+  
+  // At-risk vaccines are NIP-funded for children with medical risk
+  if (series.type === "at-risk") {
+    return hasMedicalRisk;
+  }
+  
+  // Recommended vaccines - check specific state funding
+  if (series.type === "recommended") {
+    if (series.id === "MenB") {
+      // MenB is NIP-funded for ATSI, state-funded in SA/QLD/NT for all
+      if (isATSI) return true;
+      if (stateFilter !== "ALL" && ["SA", "QLD", "NT"].includes(stateFilter)) return true;
+      return false; // Private cost elsewhere
+    }
+    // VZV dose 2 and adolescent MenB are not funded anywhere
+    return false;
+  }
+  
+  return false;
+}
+
 function CatchupSection({ stateFilter, setStateFilter }) {
   const [dob, setDob] = useState(() => {
     try {
@@ -710,6 +922,29 @@ function CatchupSection({ stateFilter, setStateFilter }) {
   const [showComplete, setShowComplete] = useState(false);
   const [showNotYetDue, setShowNotYetDue] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [isATSI, setIsATSI] = useState(() => {
+    try {
+      return sessionStorage.getItem("catchup_isATSI") === "true";
+    } catch { return false; }
+  });
+  const [hasMedicalRisk, setHasMedicalRisk] = useState(() => {
+    try {
+      return sessionStorage.getItem("catchup_medicalRisk") === "true";
+    } catch { return false; }
+  });
+
+  // Persist ATSI and medical risk flags
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("catchup_isATSI", String(isATSI));
+    } catch {}
+  }, [isATSI]);
+  
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("catchup_medicalRisk", String(hasMedicalRisk));
+    } catch {}
+  }, [hasMedicalRisk]);
 
   // Persist dob to sessionStorage
   useEffect(() => {
@@ -733,9 +968,13 @@ function CatchupSection({ stateFilter, setStateFilter }) {
   const resetAll = () => {
     setDob("");
     setSeriesStates({});
+    setIsATSI(false);
+    setHasMedicalRisk(false);
     try {
       sessionStorage.removeItem("catchup_dob");
       sessionStorage.removeItem("catchup_series");
+      sessionStorage.removeItem("catchup_isATSI");
+      sessionStorage.removeItem("catchup_medicalRisk");
     } catch {}
   };
 
@@ -883,6 +1122,16 @@ function CatchupSection({ stateFilter, setStateFilter }) {
         doc.setFillColor(Math.min(255,tr+175), Math.min(255,tg+175), Math.min(255,tb+175));
         doc.roundedRect(ML+7, y+8.5, tlw+5, 5, 1, 1, "F");
         doc.setTextColor(tr,tg,tb); doc.text(typeLabel, ML+9.5, y+12.5);
+        
+        // Add $ indicator for non-funded vaccines
+        if (!vac.isFunded) {
+          const dollarX = ML+7 + tlw + 8;
+          doc.setFillColor(254, 226, 226); // #fee2e2
+          doc.roundedRect(dollarX, y+8.5, 7, 5, 1, 1, "F");
+          doc.setTextColor(220, 38, 38); // #dc2626
+          doc.setFont("helvetica","bold");
+          doc.text("$", dollarX+2, y+12.5);
+        }
 
         doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(136,136,136);
         doc.text(`${vac.brand} \u00B7 ${vac.route}`, ML+7, y+15.5);
@@ -995,10 +1244,12 @@ function CatchupSection({ stateFilter, setStateFilter }) {
         setStroke("#E0E0E0"); doc.setLineWidth(0.3); doc.line(ML, footerY-2, W-MR, footerY-2);
         doc.setFont("helvetica","bold"); doc.setFontSize(7.5); setTC("#c0392b");
         doc.text("Always verify immunisation history in AIR before administering.", ML, footerY+2);
+        doc.setFont("helvetica","normal"); doc.setFontSize(6.5); doc.setTextColor(100,100,100);
+        doc.text("Schedule split to max 4 injectable vaccines/visit. Live vaccines same day or \u22654 weeks apart. $ = Not NIP-funded (private cost).", ML, footerY+7);
         doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(170,170,170);
-        doc.text(`Data: Australian Immunisation Handbook & NIP Schedule (Jan 2026)  \u00B7  nip.terrific.website`, ML, footerY+7);
+        doc.text(`Data: Australian Immunisation Handbook & NIP Schedule (Jan 2026)  \u00B7  nip.terrific.website`, ML, footerY+11);
         doc.setFont("helvetica","italic"); doc.setFontSize(7); doc.setTextColor(187,187,187);
-        doc.text("Dr Marc Theilhaber \u00B7 Dept of Respiratory Medicine \u00B7 Monash Children\u2019s Hospital", ML, footerY+12);
+        doc.text("Dr Marc Theilhaber \u00B7 Dept of Respiratory Medicine \u00B7 Monash Children\u2019s Hospital", ML, footerY+15);
         doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(187,187,187);
         doc.text(`Page ${i} of ${pageCount}`, W-MR, footerY+2, { align: "right" });
       }
@@ -1013,19 +1264,36 @@ function CatchupSection({ stateFilter, setStateFilter }) {
   };
   // ── end PDF ───────────────────────────────────────────────────────────────
 
-  // Only show series that are relevant for the child's age
+  // Only show series that are relevant for the child's age and state/type
   const relevantSeries = useMemo(() => {
     if (!dobDate) return CATCHUP_SERIES;
     return CATCHUP_SERIES.filter(series => {
+      // Filter by type: routine always shown, indigenous/at-risk/recommended only if applicable
+      if (series.type === "routine") {
+        // Always show routine vaccines
+      } else if (series.type === "indigenous") {
+        if (!isATSI) return false; // Only show for ATSI children
+      } else if (series.type === "at-risk") {
+        if (!hasMedicalRisk) return false; // Only show for medical risk
+      } else if (series.type === "recommended") {
+        // Show recommended vaccines (MenB, VZV2) - these are ATAGI recommended
+        // Could add a separate toggle if wanted, but for now always show
+      }
+      
+      // Filter by state funding
       if (series.statesOnly && stateFilter !== "ALL" && !series.statesOnly.includes(stateFilter)) return false;
-      // Show series if: already started, OR child has reached/passed the minimum age for it
+      
+      // Check maximum age for catch-up (e.g., HPV funded to age 26)
       const aw = currentAgeWeeks || 0;
+      if (series.maxAgeWeeks && aw > series.maxAgeWeeks) return false;
+      
+      // Show series if: already started, OR child has reached/passed the minimum age for it
       const given = seriesStates[series.id]?.dosesGiven ?? 0;
       if (given > 0) return true;
       if (!series.minAgeFirstDoseWeeks) return true;
       return aw >= series.minAgeFirstDoseWeeks;
     });
-  }, [dobDate, currentAgeWeeks, stateFilter, seriesStates]);
+  }, [dobDate, currentAgeWeeks, stateFilter, seriesStates, isATSI, hasMedicalRisk]);
 
   return (
     <section>
@@ -1053,6 +1321,19 @@ function CatchupSection({ stateFilter, setStateFilter }) {
               style={{ padding: "9px 12px", borderRadius: "8px", border: "1px solid #d0d0d0", fontSize: "13px", background: "#FAFAF8", color: "#333", fontFamily: "inherit", cursor: "pointer" }}>
               {Object.entries(STATES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
+          </div>
+          {/* ATSI and Medical Risk checkboxes */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "#333", cursor: "pointer" }}>
+              <input type="checkbox" checked={isATSI} onChange={e => setIsATSI(e.target.checked)}
+                style={{ width: "16px", height: "16px", cursor: "pointer" }} />
+              <span style={{ fontWeight: 600 }}>Aboriginal & Torres Strait Islander child</span>
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "#333", cursor: "pointer" }}>
+              <input type="checkbox" checked={hasMedicalRisk} onChange={e => setHasMedicalRisk(e.target.checked)}
+                style={{ width: "16px", height: "16px", cursor: "pointer" }} />
+              <span style={{ fontWeight: 600 }}>Medical risk conditions</span>
+            </label>
           </div>
           {ageLabel && (
             <div>
@@ -1163,6 +1444,26 @@ function CatchupSection({ stateFilter, setStateFilter }) {
           {/* Results */}
           {result && (
             <>
+              {/* Info box about catch-up rules */}
+              <div style={{
+                background: "#f0f9ff",
+                border: "1px solid #bfdbfe",
+                borderRadius: "10px",
+                padding: "12px 16px",
+                marginBottom: "16px",
+                fontSize: "12px",
+                color: "#0369a1",
+                lineHeight: 1.6,
+              }}>
+                <div style={{ fontWeight: 700, marginBottom: "6px", fontSize: "13px" }}>ℹ️ Catch-up schedule rules</div>
+                <ul style={{ margin: "0", paddingLeft: "20px" }}>
+                  <li>Maximum 4 injectable vaccines per visit — large catch-up schedules are split across multiple visits</li>
+                  <li>Live vaccines (MMR, Varicella) must be given same day OR ≥4 weeks apart</li>
+                  <li><strong>$</strong> = Not NIP-funded (private cost to patient)</li>
+                  <li>Always verify immunisation history in AIR before administering</li>
+                </ul>
+              </div>
+              
               {/* Warnings */}
               {result.warnings.length > 0 && (
                 <div style={{ marginBottom: "20px" }}>
@@ -1251,6 +1552,17 @@ function CatchupSection({ stateFilter, setStateFilter }) {
                                     <div style={{ flex: 1 }}>
                                       <span style={{ fontSize: "14px", fontWeight: 700, color: "#1a1a2e" }}>{vac.name}</span>
                                       <span style={{ fontSize: "12px", color: "#777", marginLeft: "8px" }}>Dose {vac.doseNum}/{vac.totalDoses}</span>
+                                      {!vac.isFunded && (
+                                        <span style={{ 
+                                          fontSize: "11px", 
+                                          fontWeight: 700, 
+                                          color: "#dc2626", 
+                                          marginLeft: "6px",
+                                          padding: "2px 5px",
+                                          background: "#fee2e2",
+                                          borderRadius: "3px"
+                                        }}>$</span>
+                                      )}
                                     </div>
                                     <div style={{ fontSize: "11px", color: "#888", whiteSpace: "nowrap" }}>{vac.brand} · {vac.route}</div>
                                   </div>
@@ -1341,6 +1653,17 @@ function CatchupSection({ stateFilter, setStateFilter }) {
                                               <div style={{ flex: 1 }}>
                                                 <span style={{ fontSize: "14px", fontWeight: 700, color: "#1a1a2e" }}>{vac.name}</span>
                                                 <span style={{ fontSize: "12px", color: "#777", marginLeft: "8px" }}>Dose {vac.doseNum}/{vac.totalDoses}</span>
+                                                {!vac.isFunded && (
+                                                  <span style={{ 
+                                                    fontSize: "11px", 
+                                                    fontWeight: 700, 
+                                                    color: "#dc2626", 
+                                                    marginLeft: "6px",
+                                                    padding: "2px 5px",
+                                                    background: "#fee2e2",
+                                                    borderRadius: "3px"
+                                                  }}>$</span>
+                                                )}
                                               </div>
                                               <div style={{ fontSize: "11px", color: "#888", whiteSpace: "nowrap" }}>{vac.brand} · {vac.route}</div>
                                             </div>
