@@ -1235,12 +1235,11 @@ function CatchupSection({ stateFilter, setStateFilter }) {
       checkPage(22);
       y += 8;
       const boxWidth = CW * 0.5;
-      const boxX = ML + (CW - boxWidth) / 2; // Center it
-      setFill("#F4F6FB"); doc.roundedRect(boxX, y, boxWidth, 18, 3, 3, "F");
+      const boxX = ML; // Left-aligned
+      setFill("#F4F6FB"); doc.roundedRect(boxX, y, boxWidth, 13, 3, 3, "F");
       doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(80,80,80);
       doc.text("Schedule split to max 4 injectable vaccines per visit.", boxX+4, y+6);
-      doc.text("Live vaccines: same day or 4+ weeks apart.", boxX+4, y+11);
-      doc.text("$ = Not NIP-funded (private cost).", boxX+4, y+16);
+      doc.text("$ = Not NIP-funded (private cost).", boxX+4, y+11);
 
 
       // Footer
