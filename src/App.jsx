@@ -1090,8 +1090,8 @@ function CatchupSection({ stateFilter, setStateFilter }) {
       const todayStr = today.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
 
       // Header
-      setFill("#1a1a2e"); doc.rect(0, 0, W, 42, "F");
-      setFill("#2d2b55"); doc.rect(0, 38, W, 4, "F");
+      setFill("#075985"); doc.rect(0, 0, W, 42, "F");
+      setFill("#0284c7"); doc.rect(0, 38, W, 4, "F");
       doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(18);
       doc.text("Catch-up Immunisation Schedule", ML, 16);
       doc.setFontSize(11); doc.setFont("helvetica","normal");
@@ -1229,7 +1229,7 @@ function CatchupSection({ stateFilter, setStateFilter }) {
       // Catch-up visits
       if (catchupVisits.length > 0) {
         checkPage(14);
-        setFill("#1a1a2e"); doc.rect(ML, y, CW, 10, "F");
+        setFill("#075985"); doc.rect(ML, y, CW, 10, "F");
         doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(255,255,255);
         doc.text(`Catch-up schedule — ${catchupVisits.length} ${catchupVisits.length === 1 ? "visit" : "visits"} needed`, ML+5, y+6.8);
         y += 14;
@@ -1241,7 +1241,7 @@ function CatchupSection({ stateFilter, setStateFilter }) {
             `Visit ${vi + 1}`,
             dateStr,
             formatAgeAtVisit(dobDate, visit.date),
-            isToday ? "#1a1a2e" : "#2d2b55"
+            isToday ? "#075985" : "#0369a1"
           );
           visit.vaccines.forEach(drawVaccineRow);
           y += 4;
@@ -1262,7 +1262,7 @@ function CatchupSection({ stateFilter, setStateFilter }) {
       // Routine visits
       if (routineVisits.length > 0) {
         checkPage(14);
-        setFill("#1a1a2e"); doc.rect(ML, y, CW, 10, "F");
+        setFill("#075985"); doc.rect(ML, y, CW, 10, "F");
         doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(255,255,255);
         doc.text(`Next routine ${routineVisits.length === 1 ? "visit" : "visits"}`, ML+5, y+6.8);
         y += 14;
@@ -1275,7 +1275,7 @@ function CatchupSection({ stateFilter, setStateFilter }) {
             `Visit ${visitNum}`,
             dateStr,
             formatAgeAtVisit(dobDate, visit.date),
-            isToday ? "#1a1a2e" : "#2d2b55"
+            isToday ? "#075985" : "#0369a1"
           );
           visit.vaccines.forEach(drawVaccineRow);
           y += 4;
