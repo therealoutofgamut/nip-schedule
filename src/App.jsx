@@ -910,34 +910,67 @@ function CatchupSection({ stateFilter, setStateFilter }) {
         });
       }
 
-      result.visits.forEach((visit, vi) => {
-        const isToday = visit.date.toISOString().slice(0,10) === today.toISOString().slice(0,10);
-        const dateStr = isToday ? "Today" : visit.date.toLocaleDateString("en-AU", { weekday:"short", day:"numeric", month:"short", year:"numeric" });
-        drawVisitHeader(
-          `Visit ${vi + 1}`,
-          dateStr,
-          formatAgeAtVisit(dobDate, visit.date),
-          isToday ? "#1a1a2e" : "#2d2b55"
-        );
-        visit.vaccines.forEach(drawVaccineRow);
-        y += 4;
-      });
+      // Split visits into catch-up and routine
+      const firstRoutineIndex = result.visits.findIndex(visit => 
+        visit.vaccines.every(v => v.isRoutineAge || v.newlyDue)
+      );
+      const catchupVisits = firstRoutineIndex > 0 ? result.visits.slice(0, firstRoutineIndex) : result.visits;
+      const routineVisits = firstRoutineIndex > 0 ? result.visits.slice(firstRoutineIndex) : [];
 
-      // "Back on schedule" banner before first all-routine visit
-      if (result.visits.length > 0) {
-        const firstRoutineVisitIndex = result.visits.findIndex(visit => 
-          visit.vaccines.every(v => v.isRoutineAge || v.newlyDue)
-        );
+      // Catch-up visits
+      if (catchupVisits.length > 0) {
+        checkPage(14);
+        setFill("#1a1a2e"); doc.rect(ML, y, CW, 10, "F");
+        doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(255,255,255);
+        doc.text(`Catch-up schedule — ${catchupVisits.length} ${catchupVisits.length === 1 ? "visit" : "visits"} needed`, ML+5, y+6.8);
+        y += 14;
         
-        if (firstRoutineVisitIndex > 0) {
-          checkPage(16);
-          y += 2;
-          setFill("#f0f9ff"); doc.roundedRect(ML, y, CW, 12, 2, 2, "F");
-          setStroke("#bfdbfe"); doc.setLineWidth(0.5); doc.roundedRect(ML, y, CW, 12, 2, 2, "S");
-          doc.setFont("helvetica","bold"); doc.setFontSize(8); setTC("#0369a1");
-          doc.text(`\u2139  Visit ${firstRoutineVisitIndex + 1} onwards: back on routine NIP schedule`, ML+5, y+7.5);
-          y += 16;
-        }
+        catchupVisits.forEach((visit, vi) => {
+          const isToday = visit.date.toISOString().slice(0,10) === today.toISOString().slice(0,10);
+          const dateStr = isToday ? "Today" : visit.date.toLocaleDateString("en-AU", { weekday:"short", day:"numeric", month:"short", year:"numeric" });
+          drawVisitHeader(
+            `Visit ${vi + 1}`,
+            dateStr,
+            formatAgeAtVisit(dobDate, visit.date),
+            isToday ? "#1a1a2e" : "#2d2b55"
+          );
+          visit.vaccines.forEach(drawVaccineRow);
+          y += 4;
+        });
+      }
+
+      // "Back on schedule" banner
+      if (routineVisits.length > 0) {
+        checkPage(16);
+        y += 2;
+        setFill("#f0f9ff"); doc.roundedRect(ML, y, CW, 12, 2, 2, "F");
+        setStroke("#bfdbfe"); doc.setLineWidth(0.5); doc.roundedRect(ML, y, CW, 12, 2, 2, "S");
+        doc.setFont("helvetica","bold"); doc.setFontSize(8); setTC("#0369a1");
+        doc.text("\u2139  Back on routine NIP schedule", ML+5, y+7.5);
+        y += 16;
+      }
+
+      // Routine visits
+      if (routineVisits.length > 0) {
+        checkPage(14);
+        setFill("#1a1a2e"); doc.rect(ML, y, CW, 10, "F");
+        doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(255,255,255);
+        doc.text(`Next routine ${routineVisits.length === 1 ? "visit" : "visits"}`, ML+5, y+6.8);
+        y += 14;
+        
+        routineVisits.forEach((visit, vi) => {
+          const isToday = visit.date.toISOString().slice(0,10) === today.toISOString().slice(0,10);
+          const dateStr = isToday ? "Today" : visit.date.toLocaleDateString("en-AU", { weekday:"short", day:"numeric", month:"short", year:"numeric" });
+          const visitNum = catchupVisits.length + vi + 1;
+          drawVisitHeader(
+            `Visit ${visitNum}`,
+            dateStr,
+            formatAgeAtVisit(dobDate, visit.date),
+            isToday ? "#1a1a2e" : "#2d2b55"
+          );
+          visit.vaccines.forEach(drawVaccineRow);
+          y += 4;
+        });
       }
 
       if (result.complete.length > 0) {
@@ -1154,12 +1187,25 @@ function CatchupSection({ stateFilter, setStateFilter }) {
                 </div>
               ) : result.visits.length > 0 ? (
                 <>
-                  <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#1a1a2e", margin: "0 0 16px" }}>
-                    Catch-up schedule — {result.visits.length} {result.visits.length === 1 ? "visit" : "visits"} needed
-                  </h3>
-                  <div style={{ position: "relative" }}>
-                    <div style={{ position: "absolute", left: "19px", top: "28px", bottom: "28px", width: "2px", background: "#e0e4f0", zIndex: 0 }} />
-                    {result.visits.map((visit, vi) => {
+                  {(() => {
+                    // Split visits into catch-up (accelerated) and routine (back on schedule)
+                    const firstRoutineIndex = result.visits.findIndex(visit => 
+                      visit.vaccines.every(v => v.isRoutineAge || v.newlyDue)
+                    );
+                    const catchupVisits = firstRoutineIndex > 0 ? result.visits.slice(0, firstRoutineIndex) : result.visits;
+                    const routineVisits = firstRoutineIndex > 0 ? result.visits.slice(firstRoutineIndex) : [];
+                    
+                    return (
+                      <>
+                        {/* Catch-up visits section */}
+                        {catchupVisits.length > 0 && (
+                          <>
+                            <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#1a1a2e", margin: "0 0 16px" }}>
+                              Catch-up schedule — {catchupVisits.length} {catchupVisits.length === 1 ? "visit" : "visits"} needed
+                            </h3>
+                            <div style={{ position: "relative" }}>
+                              <div style={{ position: "absolute", left: "19px", top: "28px", bottom: "28px", width: "2px", background: "#e0e4f0", zIndex: 0 }} />
+                              {catchupVisits.map((visit, vi) => {
                       const isToday = visit.date.toISOString().slice(0,10) === today.toISOString().slice(0,10);
                       return (
                         <div key={vi} style={{ display: "flex", gap: "16px", marginBottom: "16px", position: "relative", zIndex: 1 }}>
@@ -1216,36 +1262,100 @@ function CatchupSection({ stateFilter, setStateFilter }) {
                       );
                     })}
                   </div>
-                  
-                  {/* Back on schedule indicator */}
-                  {result.visits.length > 0 && (() => {
-                    // Find the first visit where ALL vaccines are at routine age or newly due
-                    const firstRoutineVisitIndex = result.visits.findIndex(visit => 
-                      visit.vaccines.every(v => v.isRoutineAge || v.newlyDue)
+                          </>
+                        )}
+                        
+                        {/* Back on schedule banner */}
+                        {routineVisits.length > 0 && (
+                          <div style={{
+                            marginTop: catchupVisits.length > 0 ? "20px" : "0",
+                            marginBottom: "16px",
+                            padding: "10px 14px",
+                            background: "#f0f9ff",
+                            border: "1px solid #bfdbfe",
+                            borderRadius: "8px",
+                            fontSize: "13px",
+                            color: "#0369a1",
+                            fontWeight: 600,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                          }}>
+                            <span>ℹ️</span>
+                            <span>Back on routine NIP schedule</span>
+                          </div>
+                        )}
+                        
+                        {/* Routine visits section */}
+                        {routineVisits.length > 0 && (
+                          <>
+                            <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#1a1a2e", margin: "0 0 16px" }}>
+                              Next routine {routineVisits.length === 1 ? "visit" : "visits"}
+                            </h3>
+                            <div style={{ position: "relative" }}>
+                              <div style={{ position: "absolute", left: "19px", top: "28px", bottom: "28px", width: "2px", background: "#e0e4f0", zIndex: 0 }} />
+                              {routineVisits.map((visit, vi) => {
+                                const isToday = visit.date.toISOString().slice(0,10) === today.toISOString().slice(0,10);
+                                const visitNum = catchupVisits.length + vi + 1; // Continue numbering from catchup visits
+                                return (
+                                  <div key={vi} style={{ display: "flex", gap: "16px", marginBottom: "16px", position: "relative", zIndex: 1 }}>
+                                    <div style={{
+                                      width: "40px", height: "40px", borderRadius: "50%", flexShrink: 0,
+                                      background: isToday ? "#1a1a2e" : "#fff",
+                                      border: `2px solid ${isToday ? "#1a1a2e" : "#c0cce0"}`,
+                                      display: "flex", alignItems: "center", justifyContent: "center",
+                                      fontSize: "13px", fontWeight: 700, color: isToday ? "#fff" : "#2d2b55",
+                                    }}>{visitNum}</div>
+                                    <div style={{
+                                      flex: 1, background: "#fff", borderRadius: "10px",
+                                      border: `1px solid ${isToday ? "#2d2b55" : "#e8e8e8"}`,
+                                      borderTop: `3px solid ${isToday ? "#1a1a2e" : "#e0e4f0"}`,
+                                      padding: "14px 16px",
+                                      boxShadow: isToday ? "0 2px 12px rgba(26,26,46,0.08)" : "none",
+                                    }}>
+                                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "10px", flexWrap: "wrap", gap: "6px" }}>
+                                        <div>
+                                          <div style={{ fontSize: "16px", fontWeight: 700, color: isToday ? "#1a1a2e" : "#2d2b55" }}>
+                                            {isToday ? "Today's visit" : formatVisitDate(visit.date)}
+                                          </div>
+                                          {!isToday && (
+                                            <div style={{ fontSize: "12px", color: "#888", marginTop: "2px" }}>
+                                              {visit.date.toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
+                                            </div>
+                                          )}
+                                        </div>
+                                        <span style={{ fontSize: "12px", color: "#888", background: "#f4f6fb", padding: "4px 10px", borderRadius: "12px", fontWeight: 600 }}>
+                                          {formatAgeAtVisit(dobDate, visit.date)}
+                                        </span>
+                                      </div>
+                                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                                        {visit.vaccines.map((vac, vi2) => {
+                                          const t = TYPES[vac.type];
+                                          return (
+                                            <div key={vi2} style={{
+                                              display: "flex", alignItems: "center", gap: "10px",
+                                              padding: "8px 12px", borderRadius: "7px",
+                                              background: t.bg, border: `1px solid ${t.color}22`,
+                                            }}>
+                                              <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: t.color, flexShrink: 0 }} />
+                                              <div style={{ flex: 1 }}>
+                                                <span style={{ fontSize: "14px", fontWeight: 700, color: "#1a1a2e" }}>{vac.name}</span>
+                                                <span style={{ fontSize: "12px", color: "#777", marginLeft: "8px" }}>Dose {vac.doseNum}/{vac.totalDoses}</span>
+                                              </div>
+                                              <div style={{ fontSize: "11px", color: "#888", whiteSpace: "nowrap" }}>{vac.brand} · {vac.route}</div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </>
+                        )}
+                      </>
                     );
-                    
-                    if (firstRoutineVisitIndex > 0) {
-                      // Show banner BEFORE the first all-routine visit
-                      return (
-                        <div style={{
-                          marginTop: "12px",
-                          padding: "10px 14px",
-                          background: "#f0f9ff",
-                          border: "1px solid #bfdbfe",
-                          borderRadius: "8px",
-                          fontSize: "13px",
-                          color: "#0369a1",
-                          fontWeight: 600,
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                        }}>
-                          <span>ℹ️</span>
-                          <span>Visit {firstRoutineVisitIndex + 1} onwards: back on routine NIP schedule</span>
-                        </div>
-                      );
-                    }
-                    return null;
                   })()}
                 </>
               ) : null}
