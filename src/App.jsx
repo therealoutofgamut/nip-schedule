@@ -384,7 +384,7 @@ const CATCHUP_SERIES = [
     route: "SC",
     maxDoses: 2,
     minIntervalWeeks: 4,
-    minAgeFirstDoseWeeks: 48,
+    minAgeFirstDoseWeeks: 52,
     routineAges: [72, 76], // 18m for dose 1 (MMRV), 18m+ for dose 2
     note: "2nd dose recommended but not NIP-funded. Min 4 weeks after first dose (usually given as MMRV at 18m).",
   },
@@ -642,8 +642,10 @@ function calcCatchupSchedule(dobDate, seriesStates, stateFilter) {
       if (dosesGiven >= requiredDoses) return;
       
       // Check if this vaccine becomes newly due at this age (not overdue, just due)
-      const minAge = series.minAgeFirstDoseWeeks;
-      if (ageAtVisit >= minAge && ageAtVisit < minAge + 8) { // within 8 weeks of becoming due
+      // Use the routine schedule age, not the minimum age (e.g., VZV is 12m min but 18m routine)
+      const routineAge = series.routineAges && series.routineAges[0];
+      const ageToCheck = routineAge || series.minAgeFirstDoseWeeks;
+      if (ageAtVisit >= ageToCheck && ageAtVisit < ageToCheck + 8) { // within 8 weeks of becoming due
         // This is a newly-due vaccine at this visit - add dose 1
         if (dosesGiven === 0) {
           const isToday = visitDate.toISOString().slice(0, 10) === today.toISOString().slice(0, 10);
@@ -914,6 +916,25 @@ function CatchupSection({ stateFilter, setStateFilter }) {
         visit.vaccines.forEach(drawVaccineRow);
         y += 4;
       });
+
+      // "Back on schedule" banner after final visit
+      if (result.visits.length > 0) {
+        const lastVisit = result.visits[result.visits.length - 1];
+        const lastVisitAge = ageInWeeks(dobDate, lastVisit.date);
+        const milestones = [52, 72, 192, 624];
+        const isMilestone = milestones.some(m => Math.abs(lastVisitAge - m) < 2);
+        const hasNewlyDue = lastVisit.vaccines.some(v => v.newlyDue);
+        
+        if (isMilestone || hasNewlyDue) {
+          checkPage(16);
+          y += 2;
+          setFill("#f0f9ff"); doc.roundedRect(ML, y, CW, 12, 2, 2, "F");
+          setStroke("#bfdbfe"); doc.setLineWidth(0.5); doc.roundedRect(ML, y, CW, 12, 2, 2, "S");
+          doc.setFont("helvetica","bold"); doc.setFontSize(8); setTC("#0369a1");
+          doc.text("\u2139  After this visit, the schedule returns to routine NIP timing", ML+5, y+7.5);
+          y += 16;
+        }
+      }
 
       if (result.complete.length > 0) {
         checkPage(14);
