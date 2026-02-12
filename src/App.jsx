@@ -3076,15 +3076,38 @@ export default function AustralianNIPSchedule() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [viewMode, setViewMode] = useState("combo"); // "combo" or "components"
   const [openAgeGroups, setOpenAgeGroups] = useState(new Set()); // Set of open age groups, empty = all closed
+  const [searchQuery, setSearchQuery] = useState("");
+  const [quickFilters, setQuickFilters] = useState(new Set()); // Set of active quick filters
+  const ageGroupRefs = useRef({});
 
   const filtered = useMemo(() => {
     const source = viewMode === "components" ? expandScheduleData(SCHEDULE_DATA) : SCHEDULE_DATA;
     return source.filter(d => {
+      // Standard filters
       if (ageFilter !== "All ages" && d.age !== ageFilter) return false;
       if (typeFilter !== "all" && d.type !== typeFilter) return false;
+      
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const searchable = `${d.vaccine} ${d.shortName} ${d.brand} ${d.notes}`.toLowerCase();
+        if (!searchable.includes(query)) return false;
+      }
+      
+      // Quick filters
+      if (quickFilters.size > 0) {
+        let matches = false;
+        if (quickFilters.has("infant") && ["Birth", "6 weeks", "4 months", "6 months", "12 months", "18 months"].includes(d.age)) matches = true;
+        if (quickFilters.has("preschool") && ["4 years"].includes(d.age)) matches = true;
+        if (quickFilters.has("school") && ["Year 7 (12–13 yrs)", "Year 10 (15–16 yrs)", "15–19 years"].includes(d.age)) matches = true;
+        if (quickFilters.has("pregnancy") && d.age === "Pregnancy") matches = true;
+        if (quickFilters.has("adult") && ["≥50 years (ATSI)", "≥65 years", "≥70 years"].includes(d.age)) matches = true;
+        if (!matches) return false;
+      }
+      
       return true;
     });
-  }, [ageFilter, typeFilter, viewMode]);
+  }, [ageFilter, typeFilter, viewMode, searchQuery, quickFilters]);
 
   const grouped = useMemo(() => {
     const groups = {};
@@ -3098,6 +3121,53 @@ export default function AustralianNIPSchedule() {
       return aSort - bSort;
     });
   }, [filtered]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    if (activeSection !== "schedule") return;
+    
+    const handleKeyDown = (e) => {
+      // Don't trigger if user is typing in an input
+      if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT" || e.target.tagName === "TEXTAREA") return;
+      
+      // Space or Enter: toggle first closed group (or first group if all closed)
+      if (e.key === " " || e.key === "Enter") {
+        e.preventDefault();
+        const firstClosedAge = grouped.find(([age]) => !openAgeGroups.has(age))?.[0];
+        if (firstClosedAge) {
+          setOpenAgeGroups(prev => {
+            const next = new Set(prev);
+            next.add(firstClosedAge);
+            return next;
+          });
+          // Scroll to it
+          setTimeout(() => {
+            ageGroupRefs.current[firstClosedAge]?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          }, 100);
+        }
+      }
+      
+      // E: Expand all
+      if (e.key === "e" || e.key === "E") {
+        const allAges = grouped.map(([age]) => age);
+        setOpenAgeGroups(new Set(allAges));
+      }
+      
+      // C: Collapse all
+      if (e.key === "c" || e.key === "C") {
+        setOpenAgeGroups(new Set());
+      }
+      
+      // /: Focus search
+      if (e.key === "/") {
+        e.preventDefault();
+        document.querySelector('input[placeholder*="Search"]')?.focus();
+      }
+    };
+    
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeSection, grouped, openAgeGroups]);
 
   const selectStyle = {
     padding: "8px 12px", borderRadius: "8px", border: "1px solid #d0d0d0",
@@ -3195,6 +3265,114 @@ export default function AustralianNIPSchedule() {
             <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: "26px", fontWeight: 400, margin: "0 0 6px" }}>Schedule by Age</h2>
             <p style={{ color: "#777", fontSize: "14px", margin: "0 0 20px" }}>Overview of all childhood vaccines. Tap any card below for full details.</p>
 
+            {/* Search Bar */}
+            <div style={{ marginBottom: "16px" }}>
+              <input
+                type="text"
+                placeholder="Search vaccines by name, brand, or keyword... (press / to focus)"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "12px 16px",
+                  fontSize: "14px",
+                  border: "2px solid #e0e0e0",
+                  borderRadius: "10px",
+                  fontFamily: "inherit",
+                  background: "#fff",
+                  transition: "border-color 0.2s ease",
+                  boxSizing: "border-box",
+                }}
+                onFocus={e => { e.currentTarget.style.borderColor = "#2d2b55"; }}
+                onBlur={e => { e.currentTarget.style.borderColor = "#e0e0e0"; }}
+              />
+            </div>
+
+            {/* Quick Filter Chips */}
+            <div style={{ marginBottom: "16px" }}>
+              <div style={{ fontSize: "12px", color: "#888", fontWeight: 600, marginBottom: "8px" }}>
+                Quick filters:
+              </div>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                {[
+                  { id: "infant", label: "Infants (birth-18m)", icon: "👶" },
+                  { id: "preschool", label: "Preschool (4y)", icon: "🎨" },
+                  { id: "school", label: "School age", icon: "🎒" },
+                  { id: "pregnancy", label: "Pregnancy", icon: "🤰" },
+                  { id: "adult", label: "Adults", icon: "👤" },
+                ].map(filter => {
+                  const isActive = quickFilters.has(filter.id);
+                  return (
+                    <button
+                      key={filter.id}
+                      onClick={() => {
+                        setQuickFilters(prev => {
+                          const next = new Set(prev);
+                          if (next.has(filter.id)) next.delete(filter.id);
+                          else next.add(filter.id);
+                          return next;
+                        });
+                      }}
+                      style={{
+                        padding: "6px 12px",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        border: `2px solid ${isActive ? "#2d2b55" : "#e0e0e0"}`,
+                        borderRadius: "20px",
+                        background: isActive ? "#2d2b55" : "#fff",
+                        color: isActive ? "#fff" : "#666",
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                        transition: "all 0.2s ease",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                      onMouseEnter={e => {
+                        if (!isActive) {
+                          e.currentTarget.style.borderColor = "#2d2b55";
+                          e.currentTarget.style.color = "#2d2b55";
+                        }
+                      }}
+                      onMouseLeave={e => {
+                        if (!isActive) {
+                          e.currentTarget.style.borderColor = "#e0e0e0";
+                          e.currentTarget.style.color = "#666";
+                        }
+                      }}
+                    >
+                      <span>{filter.icon}</span>
+                      <span>{filter.label}</span>
+                    </button>
+                  );
+                })}
+                {(searchQuery || quickFilters.size > 0) && (
+                  <button
+                    onClick={() => {
+                      setSearchQuery("");
+                      setQuickFilters(new Set());
+                    }}
+                    style={{
+                      padding: "6px 12px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      border: "1px solid #e0e0e0",
+                      borderRadius: "20px",
+                      background: "#fff",
+                      color: "#c0392b",
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                      transition: "all 0.2s ease",
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "#fff0f0"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "#fff"; }}
+                  >
+                    ✕ Clear filters
+                  </button>
+                )}
+              </div>
+            </div>
+
             {/* Filter dropdowns */}
             <div style={{ 
               background: "#fff", 
@@ -3207,32 +3385,34 @@ export default function AustralianNIPSchedule() {
                 <div style={{ fontSize: "13px", color: "#888", fontWeight: 600 }}>
                   Filter by:
                 </div>
-                <button
-                  onClick={() => {
-                    const allAges = grouped.map(([age]) => age);
-                    if (openAgeGroups.size === allAges.length) {
-                      setOpenAgeGroups(new Set()); // Collapse all
-                    } else {
-                      setOpenAgeGroups(new Set(allAges)); // Expand all
-                    }
-                  }}
-                  style={{
-                    padding: "6px 12px",
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    color: "#555",
-                    background: "#f8f8f8",
-                    border: "1px solid #d0d0d0",
-                    borderRadius: "6px",
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                    transition: "all 0.15s ease",
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = "#eeeeee"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = "#f8f8f8"; }}
-                >
-                  {openAgeGroups.size === grouped.length ? "Collapse all" : "Expand all"}
-                </button>
+                {grouped.length > 0 && (
+                  <button
+                    onClick={() => {
+                      const allAges = grouped.map(([age]) => age);
+                      if (openAgeGroups.size === allAges.length) {
+                        setOpenAgeGroups(new Set()); // Collapse all
+                      } else {
+                        setOpenAgeGroups(new Set(allAges)); // Expand all
+                      }
+                    }}
+                    style={{
+                      padding: "6px 12px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      color: "#555",
+                      background: "#f8f8f8",
+                      border: "1px solid #d0d0d0",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                      transition: "all 0.15s ease",
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "#eeeeee"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "#f8f8f8"; }}
+                  >
+                    {openAgeGroups.size === grouped.length ? "Collapse all" : "Expand all"}
+                  </button>
+                )}
               </div>
               <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
                 <select value={stateFilter} onChange={e => setStateFilter(e.target.value)} style={selectStyle}>
@@ -3364,33 +3544,88 @@ export default function AustralianNIPSchedule() {
 
             {grouped.length > 0 && (
               <div style={{ 
-                display: "flex", 
-                alignItems: "baseline", 
-                justifyContent: "space-between",
-                marginBottom: "16px",
-                paddingBottom: "8px",
-                borderBottom: "2px solid #e8e8e8",
+                position: "sticky",
+                top: 0,
+                background: "#FAFAF8",
+                zIndex: 10,
+                paddingTop: "12px",
+                paddingBottom: "12px",
+                marginBottom: "4px",
+                marginLeft: "-20px",
+                marginRight: "-20px",
+                paddingLeft: "20px",
+                paddingRight: "20px",
               }}>
-                <h3 style={{ fontSize: "16px", fontWeight: 700, color: "#1a1a2e", margin: 0 }}>
-                  Vaccines by Age Group
-                </h3>
-                <span style={{ fontSize: "12px", color: "#888" }}>
-                  {filtered.length} {filtered.length === 1 ? "vaccine" : "vaccines"} · {grouped.length} {grouped.length === 1 ? "age group" : "age groups"}
-                </span>
+                <div style={{ 
+                  display: "flex", 
+                  alignItems: "baseline", 
+                  justifyContent: "space-between",
+                  paddingBottom: "8px",
+                  borderBottom: "2px solid #e8e8e8",
+                  flexWrap: "wrap",
+                  gap: "8px",
+                }}>
+                  <h3 style={{ fontSize: "16px", fontWeight: 700, color: "#1a1a2e", margin: 0 }}>
+                    Vaccines by Age Group
+                  </h3>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+                    <span style={{ fontSize: "12px", color: "#888" }}>
+                      {filtered.length} {filtered.length === 1 ? "vaccine" : "vaccines"} · {grouped.length} {grouped.length === 1 ? "age group" : "age groups"}
+                    </span>
+                    <button
+                      onClick={() => setSelectedItem({ 
+                        vaccine: "Keyboard Shortcuts",
+                        type: "routine",
+                        age: "",
+                        brand: "",
+                        route: "",
+                        notes: "E = Expand all groups\nC = Collapse all groups\n/ = Focus search bar\nSpace/Enter = Expand first closed group"
+                      })}
+                      style={{
+                        padding: "4px 8px",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        border: "1px solid #d0d0d0",
+                        borderRadius: "6px",
+                        background: "#fff",
+                        color: "#666",
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                      }}
+                      title="View keyboard shortcuts"
+                    >
+                      ⌨️ Shortcuts
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
             {grouped.map(([age, items]) => {
               const isOpen = openAgeGroups.has(age);
               const toggle = () => {
+                const wasOpen = isOpen;
                 setOpenAgeGroups(prev => {
                   const base = new Set(prev);
                   if (base.has(age)) base.delete(age); else base.add(age);
                   return base;
                 });
+                // Scroll to opened group after a brief delay to let state update
+                if (!wasOpen) {
+                  setTimeout(() => {
+                    ageGroupRefs.current[age]?.scrollIntoView({ 
+                      behavior: "smooth", 
+                      block: "nearest" 
+                    });
+                  }, 100);
+                }
               };
               return (
-                <div key={age} style={{ marginBottom: "8px" }}>
+                <div 
+                  key={age} 
+                  style={{ marginBottom: "8px" }}
+                  ref={el => { if (el) ageGroupRefs.current[age] = el; }}
+                >
                   <button onClick={toggle} style={{
                     display: "flex", alignItems: "center", gap: "10px",
                     background: isOpen ? "#f8f9fa" : "#fff",
