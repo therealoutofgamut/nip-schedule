@@ -1,6 +1,10 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
-import { Analytics } from '@vercel/analytics/react';
+import { Analytics } from "@vercel/analytics/react";
+
+// Version tracking
+const SITE_VERSION = "Feb 2026";  // Last code update
+const SCHEDULE_VERSION = "Jan 2026";  // Last NIP schedule data revision
 
 const SCHEDULE_DATA = [
   // Birth
@@ -10,7 +14,7 @@ const SCHEDULE_DATA = [
   { vaccine: "Pneumococcal (20vPCV)", shortName: "PCV20", age: "6 weeks", ageSort: 1, type: "routine", brand: "Prevenar 20", route: "IM", notes: "From Sep 2025, Prevenar 20 replaces Prevenar 13 for all children <18 years." },
   { vaccine: "Rotavirus", shortName: "Rota", age: "6 weeks", ageSort: 1, type: "routine", brand: "Rotarix", route: "Oral", notes: "Dose 1 must be given by 14 weeks + 6 days of age. Cannot be given after this window." },
   { vaccine: "Meningococcal B", shortName: "MenB", age: "6 weeks", ageSort: 1, type: "indigenous", brand: "Bexsero", route: "IM", notes: "Aboriginal and Torres Strait Islander infants. Prophylactic paracetamol recommended." },
-  { vaccine: "Meningococcal B", shortName: "MenB", age: "6 weeks", ageSort: 1, type: "recommended", brand: "Bexsero", route: "IM", notes: "Recommended for ALL infants <2 years. Not NIP-funded for non-Indigenous children â€” available via private prescription (~$110â€“135/dose). State-funded in SA, QLD, NT. Prophylactic paracetamol recommended." },
+  { vaccine: "Meningococcal B", shortName: "MenB", age: "6 weeks", ageSort: 1, type: "recommended", brand: "Bexsero", route: "IM", notes: "Recommended for ALL infants <2 years. Not NIP-funded for non-Indigenous children — available via private prescription (~$110–135/dose). State-funded in SA, QLD, NT. Prophylactic paracetamol recommended." },
   // 4 months
   { vaccine: "DTPa-HepB-IPV-Hib", shortName: "6-in-1", age: "4 months", ageSort: 2, type: "routine", brand: "Infanrix hexa / Vaxelis", route: "IM", notes: "Second dose of the hexavalent combination vaccine." },
   { vaccine: "Pneumococcal (20vPCV)", shortName: "PCV20", age: "4 months", ageSort: 2, type: "routine", brand: "Prevenar 20", route: "IM", notes: "Second dose of pneumococcal conjugate vaccine." },
@@ -20,7 +24,7 @@ const SCHEDULE_DATA = [
   // 6 months
   { vaccine: "DTPa-HepB-IPV-Hib", shortName: "6-in-1", age: "6 months", ageSort: 3, type: "routine", brand: "Infanrix hexa / Vaxelis", route: "IM", notes: "Third dose of the hexavalent combination vaccine." },
   { vaccine: "Pneumococcal (20vPCV)", shortName: "PCV20", age: "6 months", ageSort: 3, type: "at-risk", brand: "Prevenar 20", route: "IM", notes: "Additional dose for Aboriginal & Torres Strait Islander children and children with specified medical risk conditions." },
-  { vaccine: "Influenza", shortName: "Flu", age: "6 monthsâ€“5 years", ageSort: 3.5, type: "routine", brand: "Various", route: "IM", notes: "Annual vaccination. First year: 2 doses â‰¥4 weeks apart for children <9 years. One dose annually thereafter." },
+  { vaccine: "Influenza", shortName: "Flu", age: "6 months–5 years", ageSort: 3.5, type: "routine", brand: "Various", route: "IM", notes: "Annual vaccination. First year: 2 doses ≥4 weeks apart for children <9 years. One dose annually thereafter." },
   // 12 months
   { vaccine: "Meningococcal ACWY", shortName: "MenACWY", age: "12 months", ageSort: 4, type: "routine", brand: "Nimenrix / MenQuadfi", route: "IM", notes: "Single dose at 12 months. Protects against serogroups A, C, W and Y." },
   { vaccine: "MMR", shortName: "MMR", age: "12 months", ageSort: 4, type: "routine", brand: "M-M-R II / Priorix", route: "SC", notes: "Measles, mumps and rubella. First dose." },
@@ -31,38 +35,38 @@ const SCHEDULE_DATA = [
   { vaccine: "Hib", shortName: "Hib", age: "18 months", ageSort: 5, type: "routine", brand: "ActHIB / PedvaxHIB", route: "IM", notes: "Haemophilus influenzae type b booster dose." },
   { vaccine: "DTPa", shortName: "DTPa", age: "18 months", ageSort: 5, type: "routine", brand: "Infanrix / Tripacel", route: "IM", notes: "Diphtheria, tetanus, acellular pertussis booster." },
   { vaccine: "MMRV", shortName: "MMRV", age: "18 months", ageSort: 5, type: "routine", brand: "Priorix-Tetra", route: "SC", notes: "Measles, mumps, rubella and varicella (chickenpox). Second MMR dose + first varicella dose." },
-  { vaccine: "Varicella (2nd dose)", shortName: "VZV2", age: "18 months+", ageSort: 5.5, type: "recommended", brand: "Varilrix", route: "SC", notes: "A 2nd dose of varicella vaccine is recommended for all children 12m to <14y, â‰¥4 weeks after first dose (MMRV at 18m). Not NIP-funded. Reduces risk of breakthrough varicella. Can be given at any age from 19 months to 13 years." },
+  { vaccine: "Varicella (2nd dose)", shortName: "VZV2", age: "18 months+", ageSort: 5.5, type: "recommended", brand: "Varilrix", route: "SC", notes: "A 2nd dose of varicella vaccine is recommended for all children 12m to <14y, ≥4 weeks after first dose (MMRV at 18m). Not NIP-funded. Reduces risk of breakthrough varicella. Can be given at any age from 19 months to 13 years." },
   { vaccine: "Hepatitis A", shortName: "HepA", age: "18 months", ageSort: 5, type: "indigenous", brand: "Vaqta Paed / Havrix Junior", route: "IM", notes: "Aboriginal and Torres Strait Islander children in QLD, NT, SA, WA. First dose of 2-dose schedule." },
   // 4 years
   { vaccine: "DTPa-IPV", shortName: "DTPa-IPV", age: "4 years", ageSort: 6, type: "routine", brand: "Infanrix IPV / Quadracel", route: "IM", notes: "Diphtheria, tetanus, pertussis and polio booster before starting school." },
   { vaccine: "Hepatitis A", shortName: "HepA", age: "4 years", ageSort: 6, type: "indigenous", brand: "Vaqta Paed / Havrix Junior", route: "IM", notes: "Aboriginal and Torres Strait Islander children in QLD, NT, SA, WA. Second dose." },
   { vaccine: "Pneumococcal (20vPCV)", shortName: "PCV20", age: "4 years", ageSort: 6, type: "at-risk", brand: "Prevenar 20", route: "IM", notes: "Catch-up doses available for some children. Refer to Immunisation Handbook." },
   // School - Year 7
-  { vaccine: "HPV", shortName: "HPV", age: "Year 7 (12â€“13 yrs)", ageSort: 7, type: "routine", brand: "Gardasil 9", route: "IM", notes: "2 doses, 6â€“12 months apart. 3 doses required if starting â‰¥15 years or certain medical conditions." },
-  { vaccine: "dTpa", shortName: "dTpa", age: "Year 7 (12â€“13 yrs)", ageSort: 7, type: "routine", brand: "Boostrix", route: "IM", notes: "Reduced antigen diphtheria, tetanus and pertussis booster for adolescents." },
+  { vaccine: "HPV", shortName: "HPV", age: "Year 7 (12–13 yrs)", ageSort: 7, type: "routine", brand: "Gardasil 9", route: "IM", notes: "2 doses, 6–12 months apart. 3 doses required if starting ≥15 years or certain medical conditions." },
+  { vaccine: "dTpa", shortName: "dTpa", age: "Year 7 (12–13 yrs)", ageSort: 7, type: "routine", brand: "Boostrix", route: "IM", notes: "Reduced antigen diphtheria, tetanus and pertussis booster for adolescents." },
   // School - Year 10
-  { vaccine: "Meningococcal ACWY", shortName: "MenACWY", age: "Year 10 (15â€“16 yrs)", ageSort: 8, type: "routine", brand: "Nimenrix / MenQuadfi", route: "IM", notes: "Adolescent dose. School-based program." },
-  { vaccine: "Meningococcal B", shortName: "MenB", age: "15â€“19 years", ageSort: 8.5, type: "recommended", brand: "Bexsero", route: "IM", notes: "2 doses (8 weeks apart) recommended for all healthy adolescents 15â€“19 years. Not NIP-funded. Available via private prescription (~$110â€“135/dose). Also recommended for 15â€“24y in close quarters, smokers, military recruits." },
+  { vaccine: "Meningococcal ACWY", shortName: "MenACWY", age: "Year 10 (15–16 yrs)", ageSort: 8, type: "routine", brand: "Nimenrix / MenQuadfi", route: "IM", notes: "Adolescent dose. School-based program." },
+  { vaccine: "Meningococcal B", shortName: "MenB", age: "15–19 years", ageSort: 8.5, type: "recommended", brand: "Bexsero", route: "IM", notes: "2 doses (8 weeks apart) recommended for all healthy adolescents 15–19 years. Not NIP-funded. Available via private prescription (~$110–135/dose). Also recommended for 15–24y in close quarters, smokers, military recruits." },
   // Pregnancy
   { vaccine: "Influenza", shortName: "Flu", age: "Pregnancy", ageSort: 9, type: "routine", brand: "Various", route: "IM", notes: "Recommended during each pregnancy, any trimester." },
-  { vaccine: "Pertussis (dTpa)", shortName: "dTpa", age: "Pregnancy", ageSort: 9, type: "routine", brand: "Boostrix", route: "IM", notes: "Recommended each pregnancy, ideally 20â€“32 weeks. Provides passive antibody protection to newborn." },
-  { vaccine: "RSV (Abrysvo)", shortName: "RSV", age: "Pregnancy", ageSort: 9, type: "routine", brand: "Abrysvo", route: "IM", notes: "NIP-funded from Feb 2025. Single dose recommended from 28 weeks gestation (up to 36w, or later if missed). Provides passive RSV protection to infant for ~6 months via transplacental antibodies. Only Abrysvo is approved for pregnancy â€” do NOT use Arexvy." },
-  // Infant RSV â€” state-funded
-  { vaccine: "Nirsevimab (RSV mAb)", shortName: "Nirsev", age: "Infants (seasonal)", ageSort: 0.5, type: "state", brand: "Beyfortus", route: "IM", notes: "Long-acting monoclonal antibody (not a vaccine). State/territory-funded â€” eligibility and timing vary by jurisdiction. Given to infants whose mothers did not receive Abrysvo, or <2 weeks after maternal vaccination, or with medical risk factors for severe RSV. Single dose; seasonal programs typically Aprâ€“Sep." },
+  { vaccine: "Pertussis (dTpa)", shortName: "dTpa", age: "Pregnancy", ageSort: 9, type: "routine", brand: "Boostrix", route: "IM", notes: "Recommended each pregnancy, ideally 20–32 weeks. Provides passive antibody protection to newborn." },
+  { vaccine: "RSV (Abrysvo)", shortName: "RSV", age: "Pregnancy", ageSort: 9, type: "routine", brand: "Abrysvo", route: "IM", notes: "NIP-funded from Feb 2025. Single dose recommended from 28 weeks gestation (up to 36w, or later if missed). Provides passive RSV protection to infant for ~6 months via transplacental antibodies. Only Abrysvo is approved for pregnancy — do NOT use Arexvy." },
+  // Infant RSV — state-funded
+  { vaccine: "Nirsevimab (RSV mAb)", shortName: "Nirsev", age: "Infants (seasonal)", ageSort: 0.5, type: "state", brand: "Beyfortus", route: "IM", notes: "Long-acting monoclonal antibody (not a vaccine). State/territory-funded — eligibility and timing vary by jurisdiction. Given to infants whose mothers did not receive Abrysvo, or <2 weeks after maternal vaccination, or with medical risk factors for severe RSV. Single dose; seasonal programs typically Apr–Sep." },
   // Older adults
-  { vaccine: "Influenza", shortName: "Flu", age: "â‰¥65 years", ageSort: 10, type: "routine", brand: "Various (enhanced)", route: "IM", notes: "Annual vaccination. Enhanced or adjuvanted formulations recommended." },
-  { vaccine: "Shingles (Herpes Zoster)", shortName: "Zoster", age: "â‰¥65 years", ageSort: 10, type: "routine", brand: "Shingrix", route: "IM", notes: "Non-Indigenous adults. 2 doses, 2â€“6 months apart. If previously had Zostavax via NIP, wait 5 years." },
-  { vaccine: "Shingles (Herpes Zoster)", shortName: "Zoster", age: "â‰¥50 years (ATSI)", ageSort: 9.5, type: "indigenous", brand: "Shingrix", route: "IM", notes: "Aboriginal and Torres Strait Islander adults â‰¥50 years. 2 doses, 2â€“6 months apart." },
-  { vaccine: "Pneumococcal (13vPCV)", shortName: "PCV13", age: "â‰¥70 years", ageSort: 11, type: "routine", brand: "Prevenar 13", route: "IM", notes: "Non-Indigenous adults. Adult program still uses 13vPCV (20vPCV not yet NIP-funded for adults). Followed by 23vPPV." },
-  { vaccine: "Pneumococcal", shortName: "PCV", age: "â‰¥50 years (ATSI)", ageSort: 9.5, type: "indigenous", brand: "Prevenar 13 + Pneumovax 23", route: "IM", notes: "Aboriginal and Torres Strait Islander adults. 13vPCV then 23vPPV 12 months later." },
+  { vaccine: "Influenza", shortName: "Flu", age: "≥65 years", ageSort: 10, type: "routine", brand: "Various (enhanced)", route: "IM", notes: "Annual vaccination. Enhanced or adjuvanted formulations recommended." },
+  { vaccine: "Shingles (Herpes Zoster)", shortName: "Zoster", age: "≥65 years", ageSort: 10, type: "routine", brand: "Shingrix", route: "IM", notes: "Non-Indigenous adults. 2 doses, 2–6 months apart. If previously had Zostavax via NIP, wait 5 years." },
+  { vaccine: "Shingles (Herpes Zoster)", shortName: "Zoster", age: "≥50 years (ATSI)", ageSort: 9.5, type: "indigenous", brand: "Shingrix", route: "IM", notes: "Aboriginal and Torres Strait Islander adults ≥50 years. 2 doses, 2–6 months apart." },
+  { vaccine: "Pneumococcal (13vPCV)", shortName: "PCV13", age: "≥70 years", ageSort: 11, type: "routine", brand: "Prevenar 13", route: "IM", notes: "Non-Indigenous adults. Adult program still uses 13vPCV (20vPCV not yet NIP-funded for adults). Followed by 23vPPV." },
+  { vaccine: "Pneumococcal", shortName: "PCV", age: "≥50 years (ATSI)", ageSort: 9.5, type: "indigenous", brand: "Prevenar 13 + Pneumovax 23", route: "IM", notes: "Aboriginal and Torres Strait Islander adults. 13vPCV then 23vPPV 12 months later." },
 ];
 
 const AGE_GROUPS = [
-  "Birth", "Infants (seasonal)", "6 weeks", "4 months", "6 months", "6 monthsâ€“5 years",
+  "Birth", "Infants (seasonal)", "6 weeks", "4 months", "6 months", "6 months–5 years",
   "12 months", "18 months", "18 months+", "4 years",
-  "Year 7 (12â€“13 yrs)", "Year 10 (15â€“16 yrs)", "15â€“19 years",
+  "Year 7 (12–13 yrs)", "Year 10 (15–16 yrs)", "15–19 years",
   "Pregnancy",
-  "â‰¥50 years (ATSI)", "â‰¥65 years", "â‰¥70 years"
+  "≥50 years (ATSI)", "≥65 years", "≥70 years"
 ];
 
 const TYPES = {
@@ -121,25 +125,6 @@ function isFundedInState(vaccine, state) {
   return false;
 }
 
-// Timeline shows individual antigens, mapping through combination vaccines
-const TIMELINE_ANTIGENS = [
-  { label: "Hep B",     key: "HepB" },
-  { label: "DTPa",      key: "DTPa" },
-  { label: "IPV",       key: "IPV" },
-  { label: "Hib",       key: "Hib" },
-  { label: "PCV",       key: "PCV" },
-  { label: "Rotavirus", key: "Rota" },
-  { label: "RSV",       key: "RSV" },
-  { label: "MenB",      key: "MenB" },
-  { label: "Influenza", key: "Flu" },
-  { label: "MenACWY",   key: "MenACWY" },
-  { label: "MMR",       key: "MMR" },
-  { label: "Varicella",  key: "VZV" },
-  { label: "Hep A",     key: "HepA" },
-  { label: "HPV",       key: "HPV" },
-  { label: "dTpa",      key: "dTpa" },
-];
-
 // Which antigens are in each scheduled vaccine, keyed by shortName
 const COMBO_MAP = {
   "HepB":     ["HepB"],
@@ -165,54 +150,7 @@ const COMBO_MAP = {
   "Zoster":   [],                                      // not shown on childhood timeline
 };
 
-// Multivalent vaccine display names for legend
-const MULTIVALENT_LEGEND = [
-  { combo: "Infanrix hexa / Vaxelis", contains: "DTPa + Hep B + IPV + Hib", ages: "6w, 4m, 6m" },
-  { combo: "MMRV (Priorix-Tetra)", contains: "MMR + Varicella", ages: "18m" },
-  { combo: "DTPa-IPV (Infanrix IPV)", contains: "DTPa + IPV", ages: "4y" },
-];
-
-// For expanding combo vaccines into individual component cards
-const COMPONENT_EXPAND = {
-  "DTPa-HepB-IPV-Hib": [
-    { vaccine: "Diphtheria, Tetanus, Pertussis", shortName: "DTPa", notes: "Contained in hexavalent vaccine (Infanrix hexa / Vaxelis)" },
-    { vaccine: "Hepatitis B", shortName: "HepB", notes: "Contained in hexavalent vaccine (Infanrix hexa / Vaxelis)" },
-    { vaccine: "Polio (IPV)", shortName: "IPV", notes: "Inactivated polio. Contained in hexavalent vaccine (Infanrix hexa / Vaxelis)" },
-    { vaccine: "Haemophilus influenzae type b", shortName: "Hib", notes: "Contained in hexavalent vaccine (Infanrix hexa / Vaxelis)" },
-  ],
-  "MMRV": [
-    { vaccine: "Measles, Mumps, Rubella", shortName: "MMR", notes: "Contained in MMRV (Priorix-Tetra). Second MMR dose." },
-    { vaccine: "Varicella (Chickenpox)", shortName: "VZV", notes: "Contained in MMRV (Priorix-Tetra). First varicella dose." },
-  ],
-  "DTPa-IPV": [
-    { vaccine: "Diphtheria, Tetanus, Pertussis", shortName: "DTPa", notes: "Pre-school booster. Contained in DTPa-IPV (Infanrix IPV / Quadracel)" },
-    { vaccine: "Polio (IPV)", shortName: "IPV", notes: "Pre-school booster. Contained in DTPa-IPV (Infanrix IPV / Quadracel)" },
-  ],
-};
-
-function expandScheduleData(data) {
-  const expanded = [];
-  data.forEach(item => {
-    const components = COMPONENT_EXPAND[item.vaccine];
-    if (components) {
-      components.forEach(comp => {
-        expanded.push({
-          ...item,
-          vaccine: comp.vaccine,
-          shortName: comp.shortName,
-          notes: comp.notes,
-          _comboSource: item.vaccine,
-          _comboBrand: item.brand,
-        });
-      });
-    } else {
-      expanded.push(item);
-    }
-  });
-  return expanded;
-}
-
-// Non-linear axis: birthâ€“18m gets ~60% of the visual width
+// Non-linear axis: birth–18m gets ~60% of the visual width
 const TIMELINE_AGES = [
   { label: "Birth", x: 0, pct: 0 },
   { label: "6w",    x: 6, pct: 9 },
@@ -223,12 +161,12 @@ const TIMELINE_AGES = [
   { label: "4y",    x: 192, pct: 73 },
   { label: "Yr7",   x: 576, pct: 83 },
   { label: "Yr10",  x: 720, pct: 92 },
-  { label: "15â€“19y", x: 750, pct: 100 },
+  { label: "15–19y", x: 750, pct: 100 },
 ];
 
 const VACCINE_DETAILS = {
   "Hepatitis B": {
-    diseases: "Hepatitis B virus infection â€” can cause chronic liver disease, cirrhosis and liver cancer",
+    diseases: "Hepatitis B virus infection — can cause chronic liver disease, cirrhosis and liver cancer",
     contraindications: "Anaphylaxis to previous dose or any vaccine component (yeast)",
     schedule: "Birth dose + 3 further doses at 6w, 4m, 6m (as part of hexavalent)"
   },
@@ -238,19 +176,19 @@ const VACCINE_DETAILS = {
     schedule: "3 primary doses at 6 weeks, 4 months, 6 months"
   },
   "Pneumococcal (20vPCV)": {
-    diseases: "Invasive pneumococcal disease â€” meningitis, bacteraemia, pneumonia, otitis media",
+    diseases: "Invasive pneumococcal disease — meningitis, bacteraemia, pneumonia, otitis media",
     contraindications: "Anaphylaxis to previous PCV dose or component including diphtheria toxoid (CRM197)",
     schedule: "Routine: 6w, 4m, 12m. ATSI/at-risk: additional dose at 6m (3+1 schedule)"
   },
   Rotavirus: {
     diseases: "Severe gastroenteritis in infants and young children",
     contraindications: "History of intussusception. SCID. Anaphylaxis to previous dose.",
-    schedule: "2 doses: 6w and 4m. Strict age limits â€“ dose 1 by 14 weeks + 6 days, dose 2 by 24 weeks + 6 days"
+    schedule: "2 doses: 6w and 4m. Strict age limits – dose 1 by 14 weeks + 6 days, dose 2 by 24 weeks + 6 days"
   },
   "Meningococcal B": {
-    diseases: "Invasive meningococcal disease (serogroup B) â€” meningitis, septicaemia",
+    diseases: "Invasive meningococcal disease (serogroup B) — meningitis, septicaemia",
     contraindications: "Anaphylaxis to previous dose or component",
-    schedule: "Recommended for ALL infants <2 years: 6w, 4m, 12m. Also recommended for adolescents 15â€“19y (2 doses, 8w apart). NIP-funded for ATSI infants and medical at-risk. State-funded in SA, QLD, NT. Prophylactic paracetamol recommended in children <2 years."
+    schedule: "Recommended for ALL infants <2 years: 6w, 4m, 12m. Also recommended for adolescents 15–19y (2 doses, 8w apart). NIP-funded for ATSI infants and medical at-risk. State-funded in SA, QLD, NT. Prophylactic paracetamol recommended in children <2 years."
   },
   "Meningococcal ACWY": {
     diseases: "Invasive meningococcal disease (serogroups A, C, W, Y)",
@@ -258,19 +196,19 @@ const VACCINE_DETAILS = {
     schedule: "12 months (routine) + Year 10 school program. Additional doses for at-risk groups."
   },
   "Varicella (2nd dose)": {
-    diseases: "Varicella (chickenpox) â€” prevents breakthrough varicella infection after single-dose vaccination",
+    diseases: "Varicella (chickenpox) — prevents breakthrough varicella infection after single-dose vaccination",
     contraindications: "Pregnancy. Severe immunocompromise. Anaphylaxis to neomycin or gelatin.",
-    schedule: "Recommended for all children 12m to <14y, â‰¥4 weeks after first varicella dose (MMRV at 18m). Not NIP-funded. Monovalent varicella vaccine (Varilrix) used. 2 doses give >90% protection vs ~70% with single dose."
+    schedule: "Recommended for all children 12m to <14y, ≥4 weeks after first varicella dose (MMRV at 18m). Not NIP-funded. Monovalent varicella vaccine (Varilrix) used. 2 doses give >90% protection vs ~70% with single dose."
   },
   "RSV (Abrysvo)": {
-    diseases: "Respiratory syncytial virus (RSV) â€” bronchiolitis, pneumonia in infants. Leading cause of hospitalisation in infants <6 months.",
-    contraindications: "Anaphylaxis to previous dose or component. Do NOT use Arexvy (only approved for â‰¥50 years, contraindicated in pregnancy).",
+    diseases: "Respiratory syncytial virus (RSV) — bronchiolitis, pneumonia in infants. Leading cause of hospitalisation in infants <6 months.",
+    contraindications: "Anaphylaxis to previous dose or component. Do NOT use Arexvy (only approved for ≥50 years, contraindicated in pregnancy).",
     schedule: "NIP-funded from Feb 2025. Single dose from 28 weeks gestation (ideally by 36w). Infant protection via transplacental antibodies. ~57% reduction in hospitalisation for severe RSV in infants <6 months. Recommended in each pregnancy."
   },
   "Nirsevimab (RSV mAb)": {
-    diseases: "RSV prevention in infants â€” long-acting monoclonal antibody (not a vaccine)",
-    contraindications: "Hypersensitivity to nirsevimab or excipients. Not a vaccine â€” provides passive immunity only.",
-    schedule: "State/territory-funded (not NIP). Single IM dose. For infants whose mothers did not receive Abrysvo, or vaccinated <2w before birth, or with medical risk factors. Seasonal programs vary by jurisdiction (typically Aprâ€“Sep). Also for high-risk children <24m entering 2nd RSV season."
+    diseases: "RSV prevention in infants — long-acting monoclonal antibody (not a vaccine)",
+    contraindications: "Hypersensitivity to nirsevimab or excipients. Not a vaccine — provides passive immunity only.",
+    schedule: "State/territory-funded (not NIP). Single IM dose. For infants whose mothers did not receive Abrysvo, or vaccinated <2w before birth, or with medical risk factors. Seasonal programs vary by jurisdiction (typically Apr–Sep). Also for high-risk children <24m entering 2nd RSV season."
   },
   MMR: {
     diseases: "Measles, mumps, rubella",
@@ -283,7 +221,7 @@ const VACCINE_DETAILS = {
     schedule: "Single dose at 18 months. Should not be used as dose 1 due to higher febrile seizure risk."
   },
   Hib: {
-    diseases: "Haemophilus influenzae type b â€” meningitis, epiglottitis, septicaemia",
+    diseases: "Haemophilus influenzae type b — meningitis, epiglottitis, septicaemia",
     contraindications: "Anaphylaxis to previous dose or component",
     schedule: "Primary series in hexavalent (6w, 4m, 6m) + standalone booster at 18 months"
   },
@@ -293,9 +231,9 @@ const VACCINE_DETAILS = {
     schedule: "Booster at 18 months, then DTPa-IPV at 4 years, dTpa at Year 7 and in pregnancy"
   },
   HPV: {
-    diseases: "HPV-related cancers â€” cervical, oropharyngeal, anal, penile, vaginal, vulvar. Genital warts.",
+    diseases: "HPV-related cancers — cervical, oropharyngeal, anal, penile, vaginal, vulvar. Genital warts.",
     contraindications: "Anaphylaxis to previous dose or yeast. Not recommended in pregnancy (defer).",
-    schedule: "Year 7: 2 doses 6â€“12 months apart. If â‰¥15 years at first dose or immunocompromised: 3 doses."
+    schedule: "Year 7: 2 doses 6–12 months apart. If ≥15 years at first dose or immunocompromised: 3 doses."
   },
   "Hepatitis A": {
     diseases: "Hepatitis A virus infection",
@@ -303,16 +241,1615 @@ const VACCINE_DETAILS = {
     schedule: "ATSI children in QLD, NT, SA, WA: dose 1 at 18 months, dose 2 at 4 years"
   },
   Influenza: {
-    diseases: "Influenza (seasonal flu) â€” can cause severe respiratory illness, hospitalisation",
+    diseases: "Influenza (seasonal flu) — can cause severe respiratory illness, hospitalisation",
     contraindications: "Anaphylaxis to previous influenza vaccine. Age <6 months.",
-    schedule: "Annual. NIP-funded: 6mâ€“<5y, â‰¥65y, pregnancy, ATSI â‰¥6m, medical at-risk"
+    schedule: "Annual. NIP-funded: 6m–<5y, ≥65y, pregnancy, ATSI ≥6m, medical at-risk"
   },
   "Pertussis (dTpa)": {
-    diseases: "Pertussis (whooping cough) â€” passive antibody transfer to protect newborns",
+    diseases: "Pertussis (whooping cough) — passive antibody transfer to protect newborns",
     contraindications: "Anaphylaxis to previous dose. Encephalopathy within 7 days of pertussis vaccine.",
-    schedule: "Each pregnancy, ideally 20â€“32 weeks gestation. Can be given up to delivery."
+    schedule: "Each pregnancy, ideally 20–32 weeks gestation. Can be given up to delivery."
   },
 };
+
+// ─────────────────────────────────────────────────────
+// Catch-up Scheduler Data + Logic
+// ─────────────────────────────────────────────────────
+
+const CATCHUP_SERIES = [
+  {
+    id: "sixInOne",
+    name: "6-in-1 (DTPa-HepB-IPV-Hib)",
+    shortName: "6-in-1",
+    brand: "Infanrix hexa / Vaxelis",
+    type: "routine",
+    route: "IM",
+    maxDoses: 3,
+    minIntervalWeeks: 4,
+    minAgeFirstDoseWeeks: 6,
+    routineAges: [6, 16, 24], // 6w, 4m, 6m
+    note: "Complete all 3 doses regardless of age at presentation. Min 4 weeks between doses.",
+    boosterNote: "DTPa booster needed at 18m (if ≥6m since dose 3). DTPa-IPV pre-school booster at 4y.",
+  },
+  {
+    id: "PCV",
+    name: "Pneumococcal (PCV20)",
+    shortName: "PCV20",
+    brand: "Prevenar 20",
+    type: "routine",
+    route: "IM",
+    ageDependentDoses: true, // computed at runtime
+    minIntervalWeeks: 8,
+    minAgeFirstDoseWeeks: 6,
+    routineAges: [6, 16, 52], // 6w, 4m, 12m (booster)
+    note: "Doses depend on age at first presentation. Min 8 weeks between doses in catch-up. ATSI and at-risk children <7m need 4 doses (add 1).",
+  },
+  {
+    id: "Rota",
+    name: "Rotavirus",
+    shortName: "Rotarix",
+    brand: "Rotarix",
+    type: "routine",
+    route: "Oral",
+    maxDoses: 2,
+    minIntervalWeeks: 4,
+    minAgeFirstDoseWeeks: 6,
+    routineAges: [6, 16], // 6w, 4m
+    hardCutoffDose1Weeks: 14 + 6/7, // 14w 6d
+    hardCutoffAllDosesWeeks: 24,
+    note: "STRICT AGE LIMITS: Dose 1 must be given by 14 weeks 6 days. All doses must complete by 24 weeks.",
+    warning: true,
+  },
+  {
+    id: "MMR",
+    name: "MMR",
+    shortName: "MMR",
+    brand: "M-M-R II / Priorix",
+    type: "routine",
+    route: "SC",
+    maxDoses: 2,
+    minIntervalWeeks: 4,
+    minAgeFirstDoseWeeks: 52, // 12 months
+    routineAges: [52, 72], // 12m, 18m
+    isLive: true,
+    note: "Dose 1 from 12 months. Dose 2 ideally at 18m as MMRV (adds varicella). Min 4 weeks between doses.",
+  },
+  {
+    id: "VZV",
+    name: "Varicella (Chickenpox)",
+    shortName: "VZV",
+    brand: "Varilrix / Priorix-Tetra",
+    type: "recommended",
+    route: "SC",
+    maxDoses: 2,
+    minIntervalWeeks: 4,
+    minAgeFirstDoseWeeks: 52,
+    routineAges: [72, 76], // 18m for dose 1 (MMRV), 18m+ for dose 2
+    isLive: true,
+    note: "2nd dose recommended but not NIP-funded (cost to patient). Min 4 weeks after first dose (usually given as MMRV at 18m).",
+  },
+  {
+    id: "MenACWY",
+    name: "Meningococcal ACWY",
+    shortName: "MenACWY",
+    brand: "Nimenrix / MenQuadfi",
+    type: "routine",
+    route: "IM",
+    maxDoses: 1,
+    minAgeFirstDoseWeeks: 52,
+    routineAges: [52], // 12m
+    note: "Single catch-up dose if 12m dose missed. Separate Year 10 school dose is routine.",
+  },
+  {
+    id: "MenB",
+    name: "Meningococcal B",
+    shortName: "MenB",
+    brand: "Bexsero",
+    type: "recommended",
+    route: "IM",
+    maxDoses: 3, // infant series; adolescents need only 2
+    minIntervalWeeks: null, // Age-dependent - see getMinIntervalForMenB()
+    minAgeFirstDoseWeeks: 6,
+    routineAges: [6, 16, 52], // 6w, 4m, 12m (ATSI schedule)
+    ageDependentDoses: true,
+    ageDependentInterval: true, // Flag to use age-based interval calculation
+    isLive: false,
+    note: "Infant series (< 2y): 3 doses. Adolescents 15–19y: 2 doses. Not NIP-funded except ATSI and some states (SA, QLD, NT for all infants). Private cost ~$110-135/dose. Intervals: 6w for <6m, 8w for 6-23m, 4w for ≥2y.",
+  },
+  {
+    id: "HepA",
+    name: "Hepatitis A",
+    shortName: "HepA",
+    brand: "Vaqta Paed / Havrix Junior",
+    type: "indigenous",
+    route: "IM",
+    maxDoses: 2,
+    minIntervalWeeks: 24, // 6 months
+    minAgeFirstDoseWeeks: 72, // 18 months
+    routineAges: [72, 192], // 18m, 4y
+    statesOnly: ["QLD","NT","SA","WA"],
+    note: "ATSI children in QLD, NT, SA, WA only. 2 doses at least 6 months apart.",
+  },
+  {
+    id: "HPV",
+    name: "HPV (Gardasil 9)",
+    shortName: "HPV",
+    brand: "Gardasil 9",
+    type: "routine",
+    route: "IM",
+    ageDependentDoses: true,
+    minIntervalWeeks: 24, // 6 months (2-dose schedule)
+    minAgeFirstDoseWeeks: 624, // 12y — Year 7 context
+    maxAgeWeeks: 1352, // 26 years (26 * 52)
+    routineAges: [624, 650], // Year 7, 6 months later
+    note: "< 15y at first dose: 2 doses min 6 months apart. ≥ 15y or immunocompromised: 3 doses (0, 4–8w, 6m). NIP-funded catch-up to age 26 (up to and including 25 years).",
+  },
+  {
+    id: "dTpa",
+    name: "dTpa booster",
+    shortName: "dTpa",
+    brand: "Boostrix",
+    type: "routine",
+    route: "IM",
+    maxDoses: 1,
+    minAgeFirstDoseWeeks: 624, // Year 7 (12y)
+    routineAges: [624], // Year 7
+    note: "Single adolescent booster (Year 7 school program). Separate to pregnancy dTpa.",
+  },
+];
+
+function addWeeks(date, weeks) {
+  return new Date(date.getTime() + weeks * 7 * 24 * 60 * 60 * 1000);
+}
+
+function ageInWeeks(dob, at) {
+  return (at - dob) / (7 * 24 * 60 * 60 * 1000);
+}
+
+function getPCVRequiredDoses(ageWeeksAtFirst) {
+  // Standard NIP catch-up (non-ATSI, non-at-risk).
+  // ATSI and at-risk children get 4 doses (<7m) — enter extra dose manually.
+  if (ageWeeksAtFirst < 7 * 4)    return 3; // < 7m: 2 primary + 1 booster
+  if (ageWeeksAtFirst < 12 * 4)   return 3; // 7–11m: 2 primary + 1 booster
+  if (ageWeeksAtFirst < 24 * 4)   return 2; // 12–23m: 2 doses
+  return 1;                                  // ≥24m: 1 dose
+}
+
+function getMenBRequiredDoses(ageWeeksAtFirst) {
+  if (ageWeeksAtFirst < 12 * 4) return 3;   // infants < 12m: 3 doses
+  if (ageWeeksAtFirst < 24 * 4) return 2;   // 12–23m: 2 doses
+  if (ageWeeksAtFirst < 52 * 15) return 2;  // 2y–15y: 2 doses
+  return 2;                                  // adolescents: 2 doses
+}
+
+function getHPVRequiredDoses(ageWeeksAtFirst) {
+  return ageWeeksAtFirst < 15 * 52 ? 2 : 3;
+}
+
+function getRequiredDosesForSeries(series, ageWeeks, dosesGiven, state) {
+  if (series.ageDependentDoses) {
+    const ageAtFirstDose = dosesGiven === 0 ? ageWeeks : (state?.ageAtFirstDose || ageWeeks);
+    if (series.id === "PCV") return getPCVRequiredDoses(ageAtFirstDose);
+    if (series.id === "MenB") return getMenBRequiredDoses(ageAtFirstDose);
+    if (series.id === "HPV") return getHPVRequiredDoses(ageAtFirstDose);
+  }
+  return series.maxDoses;
+}
+
+function calcCatchupSchedule(dobDate, seriesStates, stateFilter, isATSI, hasMedicalRisk) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const currentAgeWeeks = ageInWeeks(dobDate, today);
+
+  const visits = {};
+  const warnings = [];
+  const complete = [];
+  const notYetDue = [];
+
+  const addToVisit = (date, vaccine) => {
+    const key = date.toISOString().slice(0, 10);
+    if (!visits[key]) visits[key] = { date: new Date(date), vaccines: [] };
+    visits[key].vaccines.push(vaccine);
+  };
+
+  CATCHUP_SERIES.forEach(series => {
+    // Filter by state funding
+    if (series.statesOnly && stateFilter !== "ALL" && !series.statesOnly.includes(stateFilter)) return;
+    
+    // Filter by type
+    if (series.type === "indigenous" && !isATSI) return;
+    if (series.type === "at-risk" && !hasMedicalRisk) return;
+
+    const state = seriesStates[series.id] || { dosesGiven: 0, lastDoseDate: null };
+    const { dosesGiven } = state;
+    const lastDoseDate = state.lastDoseDate ? new Date(state.lastDoseDate) : null;
+
+    // KEY FIX: If the child hasn't started this series and hasn't yet reached the minimum
+    // age for the first dose, it's not behind — it's simply not due yet. Don't schedule years ahead.
+    if (dosesGiven === 0 && series.minAgeFirstDoseWeeks && currentAgeWeeks < series.minAgeFirstDoseWeeks) {
+      const dueDate = addWeeks(dobDate, series.minAgeFirstDoseWeeks);
+      notYetDue.push({
+        id: series.id,
+        name: series.name,
+        type: series.type,
+        brand: series.brand,
+        dueDate,
+        ageLabel: formatAgeAtVisit(dobDate, dueDate),
+      });
+      return;
+    }
+    
+    // Check maximum age for catch-up (e.g., HPV only to age 26)
+    if (dosesGiven === 0 && series.maxAgeWeeks && currentAgeWeeks > series.maxAgeWeeks) {
+      return; // Too old for this vaccine, skip it
+    }
+
+    let ageAtFirstDoseWeeks;
+    if (dosesGiven > 0 && lastDoseDate) {
+      const minInterv = (series.minIntervalWeeks || 4) * (dosesGiven - 1);
+      ageAtFirstDoseWeeks = ageInWeeks(dobDate, lastDoseDate) - minInterv;
+    } else {
+      ageAtFirstDoseWeeks = currentAgeWeeks;
+    }
+
+    let requiredDoses = series.maxDoses || 1;
+    if (series.ageDependentDoses) {
+      if (series.id === "PCV") requiredDoses = getPCVRequiredDoses(dosesGiven === 0 ? currentAgeWeeks : ageAtFirstDoseWeeks);
+      if (series.id === "MenB") requiredDoses = getMenBRequiredDoses(dosesGiven === 0 ? currentAgeWeeks : ageAtFirstDoseWeeks);
+      if (series.id === "HPV") requiredDoses = getHPVRequiredDoses(dosesGiven === 0 ? currentAgeWeeks : ageAtFirstDoseWeeks);
+    }
+
+    if (series.id === "Rota") {
+      if (dosesGiven === 0 && currentAgeWeeks > series.hardCutoffDose1Weeks) {
+        warnings.push({ id: series.id, name: series.name, type: "cutoff",
+          msg: "Cannot start — too old. Dose 1 must be given by 14 weeks 6 days." });
+        return;
+      }
+      if (dosesGiven === 1) {
+        const dose2Cutoff = addWeeks(dobDate, series.hardCutoffAllDosesWeeks);
+        if (today >= dose2Cutoff) {
+          warnings.push({ id: series.id, name: series.name, type: "cutoff",
+            msg: "Cannot give dose 2 — too old. All doses must complete by 24 weeks." });
+          return;
+        }
+      }
+    }
+
+    if (dosesGiven >= requiredDoses) {
+      complete.push({ id: series.id, name: series.name, type: series.type, dosesGiven, requiredDoses });
+      return;
+    }
+
+    let prevDate = lastDoseDate || today;
+
+    for (let i = dosesGiven; i < requiredDoses; i++) {
+      let earliest = new Date(prevDate);
+
+      if (i > 0 || lastDoseDate) {
+        // Use age-dependent interval for MenB
+        let minInterval = series.minIntervalWeeks || 4;
+        if (series.ageDependentInterval && series.id === "MenB") {
+          const ageAtThisDose = ageInWeeks(dobDate, earliest);
+          minInterval = getMinIntervalForMenB(ageAtThisDose);
+        }
+        const minAfterPrev = addWeeks(prevDate, minInterval);
+        if (minAfterPrev > earliest) earliest = minAfterPrev;
+      }
+
+      // Enforce routine schedule ages — don't give dose i before the routine schedule would
+      if (series.routineAges && series.routineAges[i] !== undefined) {
+        const routineMinAge = addWeeks(dobDate, series.routineAges[i]);
+        if (routineMinAge > earliest) earliest = routineMinAge;
+      }
+
+      if (series.id === "HPV" && requiredDoses === 3) {
+        if (i === 1) {
+          const minD1 = lastDoseDate ? addWeeks(lastDoseDate, 4) : addWeeks(today, 4);
+          if (minD1 > earliest) earliest = minD1;
+        }
+        if (i === 2) {
+          const dose1Date = lastDoseDate ? addWeeks(lastDoseDate, -(dosesGiven - 1) * 8) : today;
+          const sixMonthsFromD1 = addWeeks(dose1Date, 24);
+          if (sixMonthsFromD1 > earliest) earliest = sixMonthsFromD1;
+        }
+      }
+
+      if (series.id === "Rota") {
+        const cutoff = addWeeks(dobDate, series.hardCutoffAllDosesWeeks);
+        if (earliest >= cutoff) {
+          warnings.push({ id: series.id, name: series.name, type: "cutoff",
+            msg: `Dose ${i + 1} cannot be scheduled — would fall after 24-week age limit.` });
+          break;
+        }
+      }
+
+      if (earliest < today) earliest = new Date(today);
+
+      const isToday = earliest.toISOString().slice(0, 10) === today.toISOString().slice(0, 10);
+      
+      // Check if this dose is scheduled at its routine age (not accelerated catch-up)
+      const ageAtDose = ageInWeeks(dobDate, earliest);
+      const routineAge = series.routineAges && series.routineAges[i];
+      const isRoutineAge = routineAge && Math.abs(ageAtDose - routineAge) < 1; // within 1 week of routine age
+      
+      // Determine if this vaccine is funded for this child
+      const isFunded = isSeriesFunded(series, stateFilter, isATSI, hasMedicalRisk);
+
+      addToVisit(earliest, {
+        seriesId: series.id,
+        name: series.name,
+        brand: series.brand,
+        doseNum: i + 1,
+        totalDoses: requiredDoses,
+        type: series.type,
+        route: series.route,
+        isToday,
+        isRoutineAge,
+        isLive: series.isLive || false,
+        isFunded,
+      });
+
+      prevDate = earliest;
+    }
+  });
+
+  // After scheduling catch-up doses, add any vaccines that become newly due at visit ages
+  // (e.g., MMR and MenACWY at 12 months)
+  const visitDates = Object.keys(visits).map(k => new Date(k));
+  visitDates.forEach(visitDate => {
+    const ageAtVisit = ageInWeeks(dobDate, visitDate);
+    
+    CATCHUP_SERIES.forEach(series => {
+      // Filter by type and state
+      if (series.type === "indigenous" && !isATSI) return;
+      if (series.type === "at-risk" && !hasMedicalRisk) return;
+      if (series.statesOnly && stateFilter !== "ALL" && !series.statesOnly.includes(stateFilter)) return;
+      
+      // Check maximum age for catch-up
+      if (series.maxAgeWeeks && currentAgeWeeks > series.maxAgeWeeks) return;
+      
+      // Skip if already scheduled for this visit
+      const visitKey = visitDate.toISOString().slice(0, 10);
+      const alreadyScheduled = visits[visitKey]?.vaccines.some(d => d.seriesId === series.id);
+      if (alreadyScheduled) return;
+      
+      // Skip if series already complete
+      const st = seriesStates[series.id];
+      const dosesGiven = st?.dosesGiven || 0;
+      const requiredDoses = getRequiredDosesForSeries(series, ageAtVisit, dosesGiven, st);
+      if (dosesGiven >= requiredDoses) return;
+      
+      // Check if this vaccine becomes newly due at this age (not overdue, just due)
+      // Use the routine schedule age, not the minimum age (e.g., VZV is 12m min but 18m routine)
+      const routineAge = series.routineAges && series.routineAges[0];
+      const ageToCheck = routineAge || series.minAgeFirstDoseWeeks;
+      if (ageAtVisit >= ageToCheck && ageAtVisit < ageToCheck + 8) { // within 8 weeks of becoming due
+        // This is a newly-due vaccine at this visit - add dose 1
+        if (dosesGiven === 0) {
+          const isToday = visitDate.toISOString().slice(0, 10) === today.toISOString().slice(0, 10);
+          const isFunded = isSeriesFunded(series, stateFilter, isATSI, hasMedicalRisk);
+          addToVisit(visitDate, {
+            seriesId: series.id,
+            name: series.name,
+            brand: series.brand,
+            doseNum: 1,
+            totalDoses: requiredDoses,
+            type: series.type,
+            route: series.route,
+            isToday,
+            newlyDue: true, // mark as newly due, not catch-up
+            isLive: series.isLive || false,
+            isFunded,
+          });
+        }
+      }
+    });
+  });
+
+  // ────────────────────────────────────────────────────────────────────────
+  // POST-PROCESSING: Apply 4-injection limit and live vaccine spacing rules
+  // ────────────────────────────────────────────────────────────────────────
+  
+  // Step 1: Split visits with >4 injectable vaccines
+  const splitVisitsForInjectionLimit = () => {
+    const visitDates = Object.keys(visits).sort((a, b) => new Date(a) - new Date(b));
+    
+    for (const dateKey of visitDates) {
+      const visit = visits[dateKey];
+      const injectables = visit.vaccines.filter(v => v.route === "IM" || v.route === "SC");
+      
+      if (injectables.length <= 4) continue;
+      
+      // Keep first 4 injectables, move rest to new visit
+      const toKeep = injectables.slice(0, 4);
+      const toMove = injectables.slice(4);
+      
+      // Remove moved vaccines from current visit
+      visit.vaccines = visit.vaccines.filter(v => 
+        v.route === "Oral" || toKeep.some(k => k.seriesId === v.seriesId && k.doseNum === v.doseNum)
+      );
+      
+      // Schedule moved vaccines to earliest safe date (4 weeks after current visit)
+      const currentDate = new Date(dateKey);
+      const nextEarliest = addWeeks(currentDate, 4);
+      
+      toMove.forEach(vaccine => {
+        // Find when this vaccine can actually be given based on its series rules
+        const series = CATCHUP_SERIES.find(s => s.id === vaccine.seriesId);
+        if (!series) return;
+        
+        let targetDate = new Date(nextEarliest);
+        
+        // If this is not the first dose, respect minimum interval from previous dose
+        if (vaccine.doseNum > 1) {
+          // Find the previous dose date
+          let prevDoseDate = null;
+          for (const vd of Object.keys(visits).sort((a, b) => new Date(a) - new Date(b))) {
+            const prevVaccine = visits[vd].vaccines.find(v => 
+              v.seriesId === vaccine.seriesId && v.doseNum === vaccine.doseNum - 1
+            );
+            if (prevVaccine) {
+              prevDoseDate = new Date(vd);
+              break;
+            }
+          }
+          
+          if (prevDoseDate) {
+            let minInterval = series.minIntervalWeeks || 4;
+            if (series.ageDependentInterval && series.id === "MenB") {
+              const ageAtDose = ageInWeeks(dobDate, targetDate);
+              minInterval = getMinIntervalForMenB(ageAtDose);
+            }
+            const minDate = addWeeks(prevDoseDate, minInterval);
+            if (minDate > targetDate) targetDate = minDate;
+          }
+        }
+        
+        // Respect routine ages
+        if (series.routineAges && series.routineAges[vaccine.doseNum - 1] !== undefined) {
+          const routineDate = addWeeks(dobDate, series.routineAges[vaccine.doseNum - 1]);
+          if (routineDate > targetDate) targetDate = routineDate;
+        }
+        
+        if (targetDate < today) targetDate = new Date(today);
+        
+        const newDateKey = targetDate.toISOString().slice(0, 10);
+        addToVisit(targetDate, { ...vaccine, isToday: newDateKey === today.toISOString().slice(0, 10) });
+      });
+    }
+  };
+  
+  // Step 2: Enforce live vaccine spacing (same day or ≥4 weeks apart)
+  const enforceLiveVaccineSpacing = () => {
+    const visitDates = Object.keys(visits).sort((a, b) => new Date(a) - new Date(b));
+    
+    for (let i = 0; i < visitDates.length; i++) {
+      const dateKey1 = visitDates[i];
+      const visit1 = visits[dateKey1];
+      const liveVaccines1 = visit1.vaccines.filter(v => v.isLive);
+      
+      if (liveVaccines1.length === 0) continue;
+      
+      // Check all subsequent visits within 4 weeks
+      for (let j = i + 1; j < visitDates.length; j++) {
+        const dateKey2 = visitDates[j];
+        const date1 = new Date(dateKey1);
+        const date2 = new Date(dateKey2);
+        const weeksBetween = (date2 - date1) / (1000 * 60 * 60 * 24 * 7);
+        
+        if (weeksBetween >= 4) break; // Far enough apart
+        
+        const visit2 = visits[dateKey2];
+        const liveVaccines2 = visit2.vaccines.filter(v => v.isLive);
+        
+        if (liveVaccines2.length === 0) continue;
+        
+        // We have live vaccines <4 weeks apart. Try to combine to same visit if possible.
+        const visit1Injectables = visit1.vaccines.filter(v => v.route === "IM" || v.route === "SC");
+        const visit2Injectables = visit2.vaccines.filter(v => v.route === "IM" || v.route === "SC");
+        
+        // Can we move visit2's live vaccines to visit1?
+        if (visit1Injectables.length + liveVaccines2.length <= 4) {
+          // Yes! Move them
+          liveVaccines2.forEach(vaccine => {
+            visit1.vaccines.push({ ...vaccine, isToday: dateKey1 === today.toISOString().slice(0, 10) });
+          });
+          visit2.vaccines = visit2.vaccines.filter(v => !v.isLive);
+          if (visit2.vaccines.length === 0) delete visits[dateKey2];
+        } else {
+          // Can't combine. Push visit2 to ≥4 weeks after visit1
+          const minDate = addWeeks(date1, 4);
+          liveVaccines2.forEach(vaccine => {
+            // Remove from visit2
+            visit2.vaccines = visit2.vaccines.filter(v => 
+              !(v.seriesId === vaccine.seriesId && v.doseNum === vaccine.doseNum)
+            );
+            
+            // Add to new visit at safe date
+            let targetDate = new Date(minDate);
+            const series = CATCHUP_SERIES.find(s => s.id === vaccine.seriesId);
+            
+            // Respect routine ages
+            if (series && series.routineAges && series.routineAges[vaccine.doseNum - 1] !== undefined) {
+              const routineDate = addWeeks(dobDate, series.routineAges[vaccine.doseNum - 1]);
+              if (routineDate > targetDate) targetDate = routineDate;
+            }
+            
+            if (targetDate < today) targetDate = new Date(today);
+            const newDateKey = targetDate.toISOString().slice(0, 10);
+            addToVisit(targetDate, { ...vaccine, isToday: newDateKey === today.toISOString().slice(0, 10) });
+          });
+          
+          if (visit2.vaccines.length === 0) delete visits[dateKey2];
+        }
+      }
+    }
+  };
+  
+  // Apply post-processing
+  splitVisitsForInjectionLimit();
+  enforceLiveVaccineSpacing();
+  // Run split again in case live vaccine moves created new >4 visits
+  splitVisitsForInjectionLimit();
+
+  const sortedVisits = Object.values(visits).sort((a, b) => a.date - b.date);
+  return { visits: sortedVisits, warnings, complete, notYetDue };
+}
+
+function formatVisitDate(date) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const diffDays = Math.round((date - today) / (24 * 60 * 60 * 1000));
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Tomorrow";
+  if (diffDays < 14) return `In ${diffDays} days`;
+  if (diffDays < 84) return `In ${Math.round(diffDays / 7)} weeks`;
+  return date.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function formatAgeAtVisit(dobDate, visitDate) {
+  const weeks = ageInWeeks(dobDate, visitDate);
+  if (weeks < 2) return `${Math.round(weeks * 7)}d old`;
+  if (weeks < 20) return `${Math.round(weeks)}w old`;
+  if (weeks < 100) return `${Math.round(weeks / 4.33)}m old`;
+  const yrs = Math.floor(weeks / 52);
+  const mths = Math.floor((weeks % 52) / 4.33);
+  return mths > 0 ? `${yrs}y ${mths}m old` : `${yrs}y old`;
+}
+
+// Calculate minimum interval for MenB based on child's age at the dose
+function getMinIntervalForMenB(ageWeeks) {
+  if (ageWeeks < 26) return 6; // <6 months: 6 weeks
+  if (ageWeeks < 104) return 8; // 6-23 months: 8 weeks
+  return 4; // ≥2 years: 4 weeks
+}
+
+// Determine if a vaccine series is NIP-funded for this child
+function isSeriesFunded(series, stateFilter, isATSI, hasMedicalRisk) {
+  // Routine vaccines are always NIP-funded
+  if (series.type === "routine") {
+    // Check state restrictions (e.g., HepA only in certain states)
+    if (series.statesOnly && stateFilter !== "ALL" && !series.statesOnly.includes(stateFilter)) {
+      return false;
+    }
+    return true;
+  }
+  
+  // Indigenous vaccines are NIP-funded for ATSI children in specified states
+  if (series.type === "indigenous") {
+    if (!isATSI) return false;
+    if (series.statesOnly && stateFilter !== "ALL" && !series.statesOnly.includes(stateFilter)) {
+      return false;
+    }
+    return true;
+  }
+  
+  // At-risk vaccines are NIP-funded for children with medical risk
+  if (series.type === "at-risk") {
+    return hasMedicalRisk;
+  }
+  
+  // Recommended vaccines - check specific state funding
+  if (series.type === "recommended") {
+    if (series.id === "MenB") {
+      // MenB is NIP-funded for ATSI, state-funded in SA/QLD/NT for all
+      if (isATSI) return true;
+      if (stateFilter !== "ALL" && ["SA", "QLD", "NT"].includes(stateFilter)) return true;
+      return false; // Private cost elsewhere
+    }
+    // VZV dose 2 and adolescent MenB are not funded anywhere
+    return false;
+  }
+  
+  return false;
+}
+
+function CatchupSection({ stateFilter, setStateFilter }) {
+  const [dob, setDob] = useState(() => {
+    try {
+      return sessionStorage.getItem("catchup_dob") || "";
+    } catch { return ""; }
+  });
+  const [seriesStates, setSeriesStates] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem("catchup_series");
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+  const [showComplete, setShowComplete] = useState(false);
+  const [showNotYetDue, setShowNotYetDue] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [isATSI, setIsATSI] = useState(() => {
+    try {
+      return sessionStorage.getItem("catchup_isATSI") === "true";
+    } catch { return false; }
+  });
+  const [hasMedicalRisk, setHasMedicalRisk] = useState(() => {
+    try {
+      return sessionStorage.getItem("catchup_medicalRisk") === "true";
+    } catch { return false; }
+  });
+  const [expandedVaccines, setExpandedVaccines] = useState({});
+
+  // Persist ATSI and medical risk flags
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("catchup_isATSI", String(isATSI));
+    } catch {}
+  }, [isATSI]);
+  
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("catchup_medicalRisk", String(hasMedicalRisk));
+    } catch {}
+  }, [hasMedicalRisk]);
+
+  // Persist dob to sessionStorage
+  useEffect(() => {
+    try {
+      if (dob) sessionStorage.setItem("catchup_dob", dob);
+      else sessionStorage.removeItem("catchup_dob");
+    } catch {}
+  }, [dob]);
+
+  // Persist seriesStates to sessionStorage
+  useEffect(() => {
+    try {
+      if (Object.keys(seriesStates).length > 0) {
+        sessionStorage.setItem("catchup_series", JSON.stringify(seriesStates));
+      } else {
+        sessionStorage.removeItem("catchup_series");
+      }
+    } catch {}
+  }, [seriesStates]);
+
+  const resetAll = () => {
+    setDob("");
+    setSeriesStates({});
+    setIsATSI(false);
+    setHasMedicalRisk(false);
+    try {
+      sessionStorage.removeItem("catchup_dob");
+      sessionStorage.removeItem("catchup_series");
+      sessionStorage.removeItem("catchup_isATSI");
+      sessionStorage.removeItem("catchup_medicalRisk");
+    } catch {}
+  };
+
+  const dobDate = useMemo(() => {
+    if (!dob) return null;
+    const d = new Date(dob); d.setHours(0,0,0,0);
+    return isNaN(d) ? null : d;
+  }, [dob]);
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const currentAgeWeeks = dobDate ? ageInWeeks(dobDate, today) : null;
+
+  const result = useMemo(() => {
+    if (!dobDate) return null;
+    try {
+      return calcCatchupSchedule(dobDate, seriesStates, stateFilter, isATSI, hasMedicalRisk);
+    } catch (error) {
+      console.error("Error calculating catch-up schedule:", error);
+      return { visits: [], warnings: [{ id: "error", name: "Calculation Error", type: "error", msg: error.message || "An error occurred calculating the schedule" }], complete: [], notYetDue: [] };
+    }
+  }, [dobDate, seriesStates, stateFilter, isATSI, hasMedicalRisk]);
+
+  const setDoses = (id, n) => setSeriesStates(prev => ({ ...prev, [id]: { ...prev[id], dosesGiven: n, lastDoseDate: n === 0 ? null : (prev[id]?.lastDoseDate || null) } }));
+  const setLastDate = (id, val) => setSeriesStates(prev => ({ ...prev, [id]: { ...prev[id], lastDoseDate: val || null } }));
+
+  const ageLabel = currentAgeWeeks === null ? null
+    : currentAgeWeeks < 0 ? "Not yet born"
+    : currentAgeWeeks < 20 ? `${Math.round(currentAgeWeeks)} weeks`
+    : currentAgeWeeks < 100 ? `${Math.round(currentAgeWeeks / 4.33)} months`
+    : `${Math.floor(currentAgeWeeks / 52)}y ${Math.floor((currentAgeWeeks % 52) / 4.33)}m`;
+
+  const DosePills = ({ id, max }) => {
+    const given = seriesStates[id]?.dosesGiven ?? 0;
+    return (
+      <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+        <span style={{ fontSize: "11px", color: "#888", fontWeight: 600, marginRight: "4px" }}>Doses given:</span>
+        {Array.from({ length: max + 1 }, (_, n) => (
+          <button key={n} onClick={() => setDoses(id, n)} style={{
+            width: "28px", height: "28px", borderRadius: "50%", border: "none",
+            background: given === n ? "#1a1a2e" : "#f0f0f0",
+            color: given === n ? "#fff" : "#555",
+            fontSize: "12px", fontWeight: 700, cursor: "pointer",
+            fontFamily: "inherit", transition: "all 0.12s",
+          }}>{n}</button>
+        ))}
+      </div>
+    );
+  };
+
+  const getMaxForSeries = (series) => {
+    const aw = currentAgeWeeks || 0;
+    const minStart = series.minAgeFirstDoseWeeks || 0;
+    if (aw < minStart) return 0;
+    // Max doses the child could plausibly have received by current age,
+    // using minimum intervals as the baseline (most aggressive schedule).
+    const interval = series.minIntervalWeeks || 4;
+    const possibleByAge = Math.floor((aw - minStart) / interval) + 1;
+    // Hard cap at the series maximum
+    const seriesMax = series.id === "PCV" ? 3
+      : series.id === "MenB" ? 3
+      : series.id === "HPV" ? 3
+      : (series.maxDoses || 2);
+    return Math.min(possibleByAge, seriesMax);
+  };
+
+  // ── PDF generation ────────────────────────────────────────────────────────
+  const loadJsPDF = () => new Promise((resolve, reject) => {
+    if (window.jspdf) { resolve(window.jspdf); return; }
+    const script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+    script.onload = () => resolve(window.jspdf);
+    script.onerror = () => reject(new Error("Failed to load jsPDF"));
+    document.head.appendChild(script);
+  });
+
+  const generatePDF = async () => {
+    if (!dobDate || !result) return;
+    setPdfLoading(true);
+    try {
+      const jspdfModule = await loadJsPDF();
+      const { jsPDF } = jspdfModule;
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const W = 210; const ML = 18; const MR = 18; const CW = W - ML - MR;
+
+      const hex2rgb = h => [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)];
+      const setFill = hex => { const [r,g,b] = hex2rgb(hex); doc.setFillColor(r,g,b); };
+      const setStroke = hex => { const [r,g,b] = hex2rgb(hex); doc.setDrawColor(r,g,b); };
+      const setTC = hex => { const [r,g,b] = hex2rgb(hex); doc.setTextColor(r,g,b); };
+
+      const stateName = stateFilter === "ALL" ? "All states/territories" : STATES[stateFilter];
+      const todayStr = today.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
+
+      // Header
+      setFill("#075985"); doc.rect(0, 0, W, 42, "F");
+      setFill("#0284c7"); doc.rect(0, 38, W, 4, "F");
+      doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(18);
+      doc.text("Catch-up Immunisation Schedule", ML, 16);
+      doc.setFontSize(11); doc.setFont("helvetica","normal");
+      doc.setTextColor(200,210,230); doc.text("National Immunisation Program \u00B7 Australia", ML, 23);
+      doc.setFontSize(8); doc.setTextColor(150,165,190);
+      doc.text(`Generated ${todayStr}`, W - MR, 16, { align: "right" });
+      doc.text("nip.terrific.website", W - MR, 21, { align: "right" });
+
+      // Patient card
+      setFill("#F4F6FB"); doc.roundedRect(ML, 48, CW, 22, 3, 3, "F");
+      setFill("#1a1a2e"); doc.rect(ML, 48, 4, 22, "F");
+      doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(136,136,136);
+      doc.text("DATE OF BIRTH", ML+10, 55);
+      doc.text("CURRENT AGE", ML+65, 55);
+      doc.text("STATE / TERRITORY", ML+120, 55);
+      doc.setFont("helvetica","bold"); doc.setFontSize(13); setTC("#1a1a2e");
+      doc.text(dobDate.toLocaleDateString("en-AU", { day:"numeric", month:"short", year:"numeric" }), ML+10, 64);
+      doc.text(ageLabel || "—", ML+65, 64);
+      doc.setFontSize(11); doc.text(stateName, ML+120, 64);
+
+      let y = 80;
+      const PAGE_BOTTOM = 272;
+      const ROW_H = 18;
+
+      const checkPage = (need) => { if (y + need > PAGE_BOTTOM) { doc.addPage(); y = 20; } };
+
+      // Vaccines received overview
+      const receivedVaccines = Object.entries(seriesStates)
+        .filter(([id, state]) => state.dosesGiven > 0)
+        .map(([id, state]) => {
+          const series = CATCHUP_SERIES.find(s => s.id === id);
+          return { series, state };
+        })
+        .filter(item => item.series); // Only include series we recognize
+
+      if (receivedVaccines.length > 0) {
+        checkPage(16 + receivedVaccines.length * 6);
+        setFill("#F0F9FF"); doc.roundedRect(ML, y, CW, 10, 2, 2, "F");
+        setStroke("#BFDBFE"); doc.setLineWidth(0.5); doc.roundedRect(ML, y, CW, 10, 2, 2, "S");
+        doc.setFont("helvetica","bold"); doc.setFontSize(9); setTC("#0369A1");
+        doc.text(`Vaccines Already Received (${receivedVaccines.length} series)`, ML+5, y+6.5);
+        y += 12;
+
+        // List received vaccines
+        receivedVaccines.forEach((item, i) => {
+          checkPage(6);
+          doc.setFont("helvetica","normal"); doc.setFontSize(8); setTC("#555555");
+          const doseText = item.state.dosesGiven === 1 ? "1 dose" : `${item.state.dosesGiven} doses`;
+          const dateText = item.state.lastDoseDate 
+            ? ` (last: ${new Date(item.state.lastDoseDate).toLocaleDateString("en-AU", { day:"numeric", month:"short", year:"numeric" })})`
+            : "";
+          doc.text(`\u2022  ${item.series.name}: ${doseText}${dateText}`, ML+5, y+4);
+          y += 6;
+        });
+        y += 6;
+      }
+
+      const drawVisitHeader = (label, dateStr, ageStr, color) => {
+        checkPage(14);
+        const [r,g,b] = hex2rgb(color);
+        doc.setFillColor(r,g,b); doc.rect(ML, y, CW, 10, "F");
+        doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(255,255,255);
+        doc.text(label, ML+5, y+7);
+        doc.setFont("helvetica","normal"); doc.setFontSize(8);
+        doc.text(dateStr, ML+CW/2, y+7, { align: "center" });
+        doc.text(ageStr, ML+CW-2, y+7, { align: "right" });
+        y += 12;
+      };
+
+      const TYPE_LABELS = { routine:"NIP Routine", indigenous:"Aboriginal & TSI", "at-risk":"At-Risk", recommended:"Recommended", state:"State-funded" };
+
+      const drawVaccineRow = (vac) => {
+        checkPage(ROW_H);
+        const tc = TYPES[vac.type].color;
+        const [tr,tg,tb] = hex2rgb(tc);
+        setFill("#FAFAFA"); doc.rect(ML, y, CW, ROW_H, "F");
+        doc.setFillColor(tr,tg,tb); doc.rect(ML, y, 3, ROW_H, "F");
+        setStroke("#EEEEEE"); doc.setLineWidth(0.2); doc.line(ML+3, y+ROW_H, ML+CW, y+ROW_H);
+
+        doc.setFont("helvetica","bold"); doc.setFontSize(10); setTC("#1a1a2e");
+        doc.text(vac.name, ML+7, y+6.5);
+
+        const typeLabel = TYPE_LABELS[vac.type] || vac.type;
+        doc.setFontSize(7); doc.setFont("helvetica","bold");
+        const tlw = doc.getTextWidth(typeLabel);
+        doc.setFillColor(Math.min(255,tr+175), Math.min(255,tg+175), Math.min(255,tb+175));
+        doc.roundedRect(ML+7, y+8.5, tlw+5, 5, 1, 1, "F");
+        doc.setTextColor(tr,tg,tb); doc.text(typeLabel, ML+9.5, y+12.5);
+        
+        // Add $ indicator for non-funded vaccines
+        if (!vac.isFunded) {
+          const dollarX = ML+7 + tlw + 8;
+          doc.setFillColor(254, 226, 226); // #fee2e2
+          doc.roundedRect(dollarX, y+8.5, 7, 5, 1, 1, "F");
+          doc.setTextColor(220, 38, 38); // #dc2626
+          doc.setFont("helvetica","bold");
+          doc.text("$", dollarX+2, y+12.5);
+        }
+
+        doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(136,136,136);
+        doc.text(`${vac.brand} \u00B7 ${vac.route}`, ML+7, y+15.5);
+
+        doc.setFont("helvetica","bold"); doc.setFontSize(9); setTC("#1a1a2e");
+        doc.text(`Dose ${vac.doseNum}/${vac.totalDoses}`, ML+CW-2, y+8, { align: "right" });
+
+        y += ROW_H;
+      };
+
+      if (result.warnings.length > 0) {
+        checkPage(12);
+        setFill("#c0392b"); doc.rect(ML, y, CW, 9, "F");
+        doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(255,255,255);
+        doc.text("Warnings", ML+5, y+6.5);
+        y += 11;
+        result.warnings.forEach(w => {
+          checkPage(12);
+          setFill("#FFF5F5"); doc.rect(ML, y, CW, 11, "F");
+          doc.setFont("helvetica","bold"); doc.setFontSize(8); setTC("#c0392b");
+          const labelText = `${w.name}: `;
+          doc.text(labelText, ML+5, y+7.5);
+          const labelWidth = doc.getTextWidth(labelText);
+          doc.setFont("helvetica","normal");
+          doc.text(w.msg, ML+5+labelWidth, y+7.5);
+          y += 13;
+        });
+      }
+
+      // Split visits into catch-up and routine
+      const firstRoutineIndex = result.visits.findIndex(visit => 
+        visit.vaccines.every(v => v.isRoutineAge || v.newlyDue)
+      );
+      const catchupVisits = firstRoutineIndex > 0 ? result.visits.slice(0, firstRoutineIndex) : result.visits;
+      const routineVisits = firstRoutineIndex > 0 ? result.visits.slice(firstRoutineIndex) : [];
+
+      // Catch-up visits
+      if (catchupVisits.length > 0) {
+        checkPage(14);
+        setFill("#075985"); doc.rect(ML, y, CW, 10, "F");
+        doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(255,255,255);
+        doc.text(`Catch-up schedule — ${catchupVisits.length} ${catchupVisits.length === 1 ? "visit" : "visits"} needed`, ML+5, y+6.8);
+        y += 14;
+        
+        catchupVisits.forEach((visit, vi) => {
+          const isToday = visit.date.toISOString().slice(0,10) === today.toISOString().slice(0,10);
+          const dateStr = isToday ? "Today" : visit.date.toLocaleDateString("en-AU", { weekday:"short", day:"numeric", month:"short", year:"numeric" });
+          drawVisitHeader(
+            `Visit ${vi + 1}`,
+            dateStr,
+            formatAgeAtVisit(dobDate, visit.date),
+            isToday ? "#075985" : "#0369a1"
+          );
+          visit.vaccines.forEach(drawVaccineRow);
+          y += 4;
+        });
+      }
+
+      // "Back on schedule" banner
+      if (routineVisits.length > 0) {
+        checkPage(16);
+        y += 2;
+        setFill("#f0f9ff"); doc.roundedRect(ML, y, CW, 12, 2, 2, "F");
+        setStroke("#bfdbfe"); doc.setLineWidth(0.5); doc.roundedRect(ML, y, CW, 12, 2, 2, "S");
+        doc.setFont("helvetica","bold"); doc.setFontSize(8); setTC("#0369a1");
+        doc.text("\u25BA  Back on routine NIP schedule", ML+5, y+7.5);
+        y += 16;
+      }
+
+      // Routine visits
+      if (routineVisits.length > 0) {
+        checkPage(14);
+        setFill("#075985"); doc.rect(ML, y, CW, 10, "F");
+        doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(255,255,255);
+        doc.text(`Next routine ${routineVisits.length === 1 ? "visit" : "visits"}`, ML+5, y+6.8);
+        y += 14;
+        
+        routineVisits.forEach((visit, vi) => {
+          const isToday = visit.date.toISOString().slice(0,10) === today.toISOString().slice(0,10);
+          const dateStr = isToday ? "Today" : visit.date.toLocaleDateString("en-AU", { weekday:"short", day:"numeric", month:"short", year:"numeric" });
+          const visitNum = catchupVisits.length + vi + 1;
+          drawVisitHeader(
+            `Visit ${visitNum}`,
+            dateStr,
+            formatAgeAtVisit(dobDate, visit.date),
+            isToday ? "#075985" : "#0369a1"
+          );
+          visit.vaccines.forEach(drawVaccineRow);
+          y += 4;
+        });
+      }
+
+      if (result.complete.length > 0) {
+        checkPage(14);
+        y += 4;
+        setFill("#0D6E3F"); doc.rect(ML, y, CW, 9, "F");
+        doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(255,255,255);
+        doc.text(`Up to date (${result.complete.length} series)`, ML+5, y+6.5);
+        y += 11;
+        const names = result.complete.map(s => s.name).join("  \u2022  ");
+        doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(80,80,80);
+        const lines = doc.splitTextToSize(names, CW - 6);
+        lines.forEach(line => { checkPage(8); doc.text(line, ML+4, y+5); y += 7; });
+        y += 4;
+      }
+
+      // Scheduling rules note at end of content
+      checkPage(22);
+      y += 8;
+      const boxWidth = CW * 0.5;
+      const boxX = ML; // Left-aligned
+      setFill("#F4F6FB"); doc.roundedRect(boxX, y, boxWidth, 13, 3, 3, "F");
+      doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(80,80,80);
+      doc.text("Schedule split to max 4 injectable vaccines per visit.", boxX+4, y+6);
+      doc.text("$ = Not NIP-funded (private cost).", boxX+4, y+11);
+
+
+      // Footer
+      const H = 297; const footerY = H - 25;
+      const pageCount = doc.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        setStroke("#E0E0E0"); doc.setLineWidth(0.3); doc.line(ML, footerY-2, W-MR, footerY-2);
+        doc.setFont("helvetica","bold"); doc.setFontSize(7.5); setTC("#c0392b");
+        doc.text("Always verify immunisation history in AIR before administering.", ML, footerY+2);
+        doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(170,170,170);
+        doc.text(`Data: Australian Immunisation Handbook & NIP Schedule (${SCHEDULE_VERSION})  \u00B7  nip.terrific.website`, ML, footerY+7);
+        doc.setFont("helvetica","normal"); doc.setFontSize(6.5); doc.setTextColor(200,200,200);
+        doc.text(`Schedule data: ${SCHEDULE_VERSION} \u00B7 Site version: ${SITE_VERSION}`, ML, footerY+11);
+        doc.setFont("helvetica","italic"); doc.setFontSize(7); doc.setTextColor(187,187,187);
+        doc.text("Dr Marc Theilhaber \u00B7 Dept of Respiratory Medicine \u00B7 Monash Children\u2019s Hospital", ML, footerY+15);
+        doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(187,187,187);
+        doc.text(`Page ${i} of ${pageCount}`, W-MR, footerY+2, { align: "right" });
+      }
+
+      doc.save(`NIP-catchup-${dob.replace(/-/g,"")}.pdf`);
+    } catch (err) {
+      console.error("PDF error:", err);
+      alert("Could not generate PDF. Please check your internet connection.");
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+  // ── end PDF ───────────────────────────────────────────────────────────────
+
+  // Only show series that are relevant for the child's age and state/type
+  const relevantSeries = useMemo(() => {
+    if (!dobDate) return CATCHUP_SERIES;
+    return CATCHUP_SERIES.filter(series => {
+      // Filter by type: routine always shown, indigenous/at-risk/recommended only if applicable
+      if (series.type === "routine") {
+        // Always show routine vaccines
+      } else if (series.type === "indigenous") {
+        if (!isATSI) return false; // Only show for ATSI children
+      } else if (series.type === "at-risk") {
+        if (!hasMedicalRisk) return false; // Only show for medical risk
+      } else if (series.type === "recommended") {
+        // Show recommended vaccines (MenB, VZV2) - these are ATAGI recommended
+        // Could add a separate toggle if wanted, but for now always show
+      }
+      
+      // Filter by state funding
+      if (series.statesOnly && stateFilter !== "ALL" && !series.statesOnly.includes(stateFilter)) return false;
+      
+      // Check maximum age for catch-up (e.g., HPV funded to age 26)
+      const aw = currentAgeWeeks || 0;
+      if (series.maxAgeWeeks && aw > series.maxAgeWeeks) return false;
+      
+      // Show series if: already started, OR child has reached/passed the minimum age for it
+      const given = seriesStates[series.id]?.dosesGiven ?? 0;
+      if (given > 0) return true;
+      if (!series.minAgeFirstDoseWeeks) return true;
+      return aw >= series.minAgeFirstDoseWeeks;
+    });
+  }, [dobDate, currentAgeWeeks, stateFilter, seriesStates, isATSI, hasMedicalRisk]);
+
+  return (
+    <section>
+      <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: "26px", fontWeight: 400, margin: "0 0 6px" }}>
+        Catch-up Calculator
+      </h2>
+      <p style={{ color: "#777", fontSize: "14px", margin: "0 0 24px", lineHeight: 1.6 }}>
+        Enter the child's date of birth and how many doses of each vaccine they've received.
+        The calculator generates a catch-up schedule with minimum safe intervals — only for vaccines the child is old enough to receive.
+        Always verify against AIR.
+      </p>
+
+      {/* DOB + State row */}
+      <div style={{ background: "#fff", borderRadius: "12px", border: "1px solid #e8e8e8", padding: "20px 24px", marginBottom: "24px" }}>
+        <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", alignItems: "flex-end" }}>
+          <div>
+            <label style={{ fontSize: "12px", fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.05em", display: "block", marginBottom: "6px" }}>Date of Birth</label>
+            <input type="date" value={dob} onChange={e => setDob(e.target.value)}
+              max={today.toISOString().split("T")[0]}
+              style={{ padding: "9px 12px", borderRadius: "8px", border: "1px solid #d0d0d0", fontSize: "14px", fontFamily: "inherit", color: "#1a1a2e", background: "#FAFAF8", cursor: "pointer" }} />
+          </div>
+          <div>
+            <label style={{ fontSize: "12px", fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.05em", display: "block", marginBottom: "6px" }}>State / Territory</label>
+            <select value={stateFilter} onChange={e => setStateFilter(e.target.value)}
+              style={{ padding: "9px 12px", borderRadius: "8px", border: "1px solid #d0d0d0", fontSize: "13px", background: "#FAFAF8", color: "#333", fontFamily: "inherit", cursor: "pointer" }}>
+              {Object.entries(STATES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </div>
+          {/* ATSI and Medical Risk checkboxes */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "#333", cursor: "pointer" }}>
+              <input type="checkbox" checked={isATSI} onChange={e => setIsATSI(e.target.checked)}
+                style={{ width: "16px", height: "16px", cursor: "pointer" }} />
+              <span style={{ fontWeight: 600 }}>Aboriginal & Torres Strait Islander child</span>
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "#333", cursor: "pointer" }}>
+              <input type="checkbox" checked={hasMedicalRisk} onChange={e => setHasMedicalRisk(e.target.checked)}
+                style={{ width: "16px", height: "16px", cursor: "pointer" }} />
+              <span style={{ fontWeight: 600 }}>Medical risk conditions</span>
+            </label>
+          </div>
+          {ageLabel && (
+            <div>
+              <div style={{ fontSize: "12px", fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Current Age</div>
+              <div style={{ fontSize: "22px", fontWeight: 700, color: "#1a1a2e" }}>{ageLabel}</div>
+            </div>
+          )}
+          {/* Action buttons row — show when there's any data */}
+          {(dob || Object.keys(seriesStates).length > 0) && (
+            <div style={{ marginLeft: "auto", display: "flex", gap: "10px", alignItems: "center" }}>
+              {/* Reset button */}
+              <button onClick={resetAll} style={{
+                padding: "10px 16px",
+                background: "transparent",
+                color: "#999",
+                border: "1px solid #d0d0d0",
+                borderRadius: "8px",
+                fontSize: "13px", fontWeight: 600, fontFamily: "inherit",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+                whiteSpace: "nowrap",
+              }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "#c0392b"; e.currentTarget.style.color = "#c0392b"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "#d0d0d0"; e.currentTarget.style.color = "#999"; }}
+              >
+                Reset
+              </button>
+              {/* PDF button — only show when there's something to print */}
+              {dobDate && result && (result.visits.length > 0 || result.complete.length > 0) && (
+                <button onClick={generatePDF} disabled={pdfLoading} style={{
+                  display: "flex", alignItems: "center", gap: "8px",
+                  padding: "10px 18px",
+                  background: pdfLoading ? "#e8e8e8" : "linear-gradient(135deg, #1a1a2e 0%, #2d2b55 100%)",
+                  color: pdfLoading ? "#999" : "#fff",
+                  border: "none", borderRadius: "10px",
+                  fontSize: "13px", fontWeight: 700, fontFamily: "inherit",
+                  cursor: pdfLoading ? "not-allowed" : "pointer",
+                  boxShadow: pdfLoading ? "none" : "0 4px 12px rgba(26,26,46,0.3)",
+                  transition: "all 0.2s ease", whiteSpace: "nowrap",
+                }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  {pdfLoading ? "Generating..." : "Download PDF"}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {!dobDate ? (
+        <div style={{ textAlign: "center", padding: "48px 24px", color: "#bbb", fontSize: "15px" }}>
+          Enter a date of birth above to begin
+        </div>
+      ) : (
+        <>
+          {/* Vaccination History Section */}
+          <div style={{ 
+            background: "#fff", 
+            borderRadius: "12px", 
+            border: "1px solid #e8e8e8", 
+            padding: "20px 24px",
+            marginBottom: "32px"
+          }}>
+            <div style={{ marginBottom: "16px" }}>
+              <h3 style={{ fontSize: "16px", fontWeight: 700, color: "#1a1a2e", margin: "0 0 4px" }}>
+                Vaccination History
+              </h3>
+              <p style={{ fontSize: "13px", color: "#888", margin: "0" }}>
+                Select vaccines already received. Only age-appropriate vaccines are shown.
+              </p>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {relevantSeries.map(series => {
+                const given = seriesStates[series.id]?.dosesGiven ?? 0;
+                const lastDate = seriesStates[series.id]?.lastDoseDate || "";
+                const maxPills = getMaxForSeries(series);
+                const t = TYPES[series.type];
+                const isRotaCutoff = series.id === "Rota" && currentAgeWeeks > series.hardCutoffDose1Weeks;
+                const isExpanded = expandedVaccines[series.id];
+                
+                return (
+                  <div key={series.id} style={{
+                    background: "#FAFAF8", 
+                    borderRadius: "8px",
+                    border: `1px solid ${t.color}22`,
+                    borderLeft: `3px solid ${isRotaCutoff ? "#c0392b" : t.color}`,
+                    overflow: "hidden",
+                    opacity: isRotaCutoff ? 0.6 : 1,
+                  }}>
+                    {/* Collapsible Header */}
+                    <button
+                      onClick={() => setExpandedVaccines(prev => ({ ...prev, [series.id]: !prev[series.id] }))}
+                      style={{
+                        width: "100%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "12px 16px",
+                        background: "transparent",
+                        border: "none",
+                        cursor: isRotaCutoff ? "default" : "pointer",
+                        textAlign: "left",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "2px", flexWrap: "wrap" }}>
+                          <span style={{ fontSize: "14px", fontWeight: 700, color: "#1a1a2e" }}>
+                            {series.name}
+                          </span>
+                          <TypeBadge type={series.type} />
+                          {given > 0 && !isRotaCutoff && (
+                            <span style={{
+                              fontSize: "11px",
+                              padding: "2px 8px",
+                              borderRadius: "10px",
+                              background: t.color,
+                              color: "#fff",
+                              fontWeight: 600,
+                            }}>
+                              {given} {given === 1 ? "dose" : "doses"}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: "11px", color: "#888" }}>
+                          {series.brand} · {series.route}
+                        </div>
+                      </div>
+                      {!isRotaCutoff && (
+                        <div style={{
+                          fontSize: "20px",
+                          color: "#888",
+                          transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
+                          transition: "transform 0.2s ease",
+                          marginLeft: "8px",
+                        }}>
+                          ▼
+                        </div>
+                      )}
+                    </button>
+
+                    {/* Expanded Content */}
+                    {isExpanded && !isRotaCutoff && (
+                      <div style={{ 
+                        padding: "0 16px 12px", 
+                        borderTop: `1px solid ${t.color}15`,
+                      }}>
+                        <div style={{ marginTop: "12px" }}>
+                          <DosePills id={series.id} max={maxPills} />
+                        </div>
+                        {given > 0 && (
+                          <div style={{ marginTop: "12px" }}>
+                            <label style={{ 
+                              fontSize: "11px", 
+                              color: "#666", 
+                              fontWeight: 600, 
+                              display: "block", 
+                              marginBottom: "4px" 
+                            }}>
+                              Date of last dose (optional)
+                            </label>
+                            <input 
+                              type="date" 
+                              value={lastDate} 
+                              onChange={e => setLastDate(series.id, e.target.value)}
+                              max={today.toISOString().split("T")[0]}
+                              style={{ 
+                                padding: "8px 10px", 
+                                borderRadius: "6px", 
+                                border: "1px solid #d0d0d0", 
+                                fontSize: "13px", 
+                                fontFamily: "inherit", 
+                                background: "#fff", 
+                                color: "#333", 
+                                width: "100%", 
+                                boxSizing: "border-box" 
+                              }} 
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Rotavirus Cutoff Warning */}
+                    {isRotaCutoff && (
+                      <div style={{ 
+                        padding: "8px 16px 12px",
+                        fontSize: "12px", 
+                        color: "#c0392b", 
+                        fontWeight: 600,
+                      }}>
+                        ⚠️ Cannot start — child is too old (max 14w 6d)
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Results */}
+          {result && (
+            <>
+              {/* Info box about catch-up rules */}
+              <div style={{
+                background: "#f0f9ff",
+                border: "1px solid #bfdbfe",
+                borderRadius: "10px",
+                padding: "12px 16px",
+                marginBottom: "16px",
+                fontSize: "12px",
+                color: "#0369a1",
+                lineHeight: 1.6,
+              }}>
+                <div style={{ fontWeight: 700, marginBottom: "6px", fontSize: "13px" }}>ℹ️ Catch-up schedule rules</div>
+                <ul style={{ margin: "0", paddingLeft: "20px" }}>
+                  <li>Maximum 4 injectable vaccines per visit — large catch-up schedules are split across multiple visits</li>
+                  <li>Live vaccines (MMR, Varicella) must be given same day OR ≥4 weeks apart</li>
+                  <li><strong>$</strong> = Not NIP-funded (private cost to patient)</li>
+                  <li>Always verify immunisation history in AIR before administering</li>
+                </ul>
+              </div>
+              
+              {/* Warnings */}
+              {result.warnings.length > 0 && (
+                <div style={{ marginBottom: "20px" }}>
+                  {result.warnings.map((w, i) => (
+                    <div key={i} style={{ display: "flex", gap: "10px", alignItems: "flex-start", background: "#fff8f0", border: "1px solid #f4d090", borderRadius: "8px", padding: "12px 14px", marginBottom: "8px" }}>
+                      <span style={{ fontSize: "16px", flexShrink: 0 }}>⚠️</span>
+                      <div>
+                        <strong style={{ fontSize: "13px", color: "#8B4513" }}>{w.name}:</strong>
+                        <span style={{ fontSize: "13px", color: "#8B4513" }}> {w.msg}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Visit timeline */}
+              {result.visits.length === 0 && result.warnings.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "32px", background: "#f0faf4", borderRadius: "12px", border: "1px solid #b7e5c6", marginBottom: "16px" }}>
+                  <div style={{ fontSize: "28px", marginBottom: "8px" }}>✓</div>
+                  <div style={{ fontSize: "16px", fontWeight: 700, color: "#0D6E3F" }}>Up to date for age</div>
+                  <div style={{ fontSize: "13px", color: "#555", marginTop: "4px" }}>All age-appropriate vaccines are complete.</div>
+                </div>
+              ) : result.visits.length > 0 ? (
+                <>
+                  {(() => {
+                    // Split visits into catch-up (accelerated) and routine (back on schedule)
+                    const firstRoutineIndex = result.visits.findIndex(visit => 
+                      visit.vaccines.every(v => v.isRoutineAge || v.newlyDue)
+                    );
+                    const catchupVisits = firstRoutineIndex > 0 ? result.visits.slice(0, firstRoutineIndex) : result.visits;
+                    const routineVisits = firstRoutineIndex > 0 ? result.visits.slice(firstRoutineIndex) : [];
+                    
+                    return (
+                      <>
+                        {/* Catch-up visits section */}
+                        {catchupVisits.length > 0 && (
+                          <>
+                            <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#1a1a2e", margin: "0 0 16px" }}>
+                              Catch-up schedule — {catchupVisits.length} {catchupVisits.length === 1 ? "visit" : "visits"} needed
+                            </h3>
+                            <div style={{ position: "relative" }}>
+                              <div style={{ position: "absolute", left: "19px", top: "28px", bottom: "28px", width: "2px", background: "#e0e4f0", zIndex: 0 }} />
+                              {catchupVisits.map((visit, vi) => {
+                      const isToday = visit.date.toISOString().slice(0,10) === today.toISOString().slice(0,10);
+                      return (
+                        <div key={vi} style={{ display: "flex", gap: "16px", marginBottom: "16px", position: "relative", zIndex: 1 }}>
+                          <div style={{
+                            width: "40px", height: "40px", borderRadius: "50%", flexShrink: 0,
+                            background: isToday ? "#1a1a2e" : "#fff",
+                            border: `2px solid ${isToday ? "#1a1a2e" : "#c0cce0"}`,
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            fontSize: "13px", fontWeight: 700, color: isToday ? "#fff" : "#2d2b55",
+                          }}>{vi + 1}</div>
+                          <div style={{
+                            flex: 1, background: "#fff", borderRadius: "10px",
+                            border: `1px solid ${isToday ? "#2d2b55" : "#e8e8e8"}`,
+                            borderTop: `3px solid ${isToday ? "#1a1a2e" : "#e0e4f0"}`,
+                            padding: "14px 16px",
+                            boxShadow: isToday ? "0 2px 12px rgba(26,26,46,0.08)" : "none",
+                          }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "10px", flexWrap: "wrap", gap: "6px" }}>
+                              <div>
+                                <div style={{ fontSize: "16px", fontWeight: 700, color: isToday ? "#1a1a2e" : "#2d2b55" }}>
+                                  {isToday ? "Today's visit" : formatVisitDate(visit.date)}
+                                </div>
+                                {!isToday && (
+                                  <div style={{ fontSize: "12px", color: "#888", marginTop: "2px" }}>
+                                    {visit.date.toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
+                                  </div>
+                                )}
+                              </div>
+                              <span style={{ fontSize: "12px", color: "#888", background: "#f4f6fb", padding: "4px 10px", borderRadius: "12px", fontWeight: 600 }}>
+                                {formatAgeAtVisit(dobDate, visit.date)}
+                              </span>
+                            </div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                              {visit.vaccines.map((vac, vi2) => {
+                                const t = TYPES[vac.type];
+                                return (
+                                  <div key={vi2} style={{
+                                    display: "flex", alignItems: "center", gap: "10px",
+                                    padding: "8px 12px", borderRadius: "7px",
+                                    background: t.bg, border: `1px solid ${t.color}22`,
+                                  }}>
+                                    <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: t.color, flexShrink: 0 }} />
+                                    <div style={{ flex: 1 }}>
+                                      <span style={{ fontSize: "14px", fontWeight: 700, color: "#1a1a2e" }}>{vac.name}</span>
+                                      <span style={{ fontSize: "12px", color: "#777", marginLeft: "8px" }}>Dose {vac.doseNum}/{vac.totalDoses}</span>
+                                      {!vac.isFunded && (
+                                        <span style={{ 
+                                          fontSize: "11px", 
+                                          fontWeight: 700, 
+                                          color: "#dc2626", 
+                                          marginLeft: "6px",
+                                          padding: "2px 5px",
+                                          background: "#fee2e2",
+                                          borderRadius: "3px"
+                                        }}>$</span>
+                                      )}
+                                    </div>
+                                    <div style={{ fontSize: "11px", color: "#888", whiteSpace: "nowrap" }}>{vac.brand} · {vac.route}</div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                          </>
+                        )}
+                        
+                        {/* Back on schedule banner */}
+                        {routineVisits.length > 0 && (
+                          <div style={{
+                            marginTop: catchupVisits.length > 0 ? "20px" : "0",
+                            marginBottom: "16px",
+                            padding: "10px 14px",
+                            background: "#f0f9ff",
+                            border: "1px solid #bfdbfe",
+                            borderRadius: "8px",
+                            fontSize: "13px",
+                            color: "#0369a1",
+                            fontWeight: 600,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                          }}>
+                            <span>ℹ️</span>
+                            <span>Back on routine NIP schedule</span>
+                          </div>
+                        )}
+                        
+                        {/* Routine visits section */}
+                        {routineVisits.length > 0 && (
+                          <>
+                            <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#1a1a2e", margin: "0 0 16px" }}>
+                              Next routine {routineVisits.length === 1 ? "visit" : "visits"}
+                            </h3>
+                            <div style={{ position: "relative" }}>
+                              <div style={{ position: "absolute", left: "19px", top: "28px", bottom: "28px", width: "2px", background: "#e0e4f0", zIndex: 0 }} />
+                              {routineVisits.map((visit, vi) => {
+                                const isToday = visit.date.toISOString().slice(0,10) === today.toISOString().slice(0,10);
+                                const visitNum = catchupVisits.length + vi + 1; // Continue numbering from catchup visits
+                                return (
+                                  <div key={vi} style={{ display: "flex", gap: "16px", marginBottom: "16px", position: "relative", zIndex: 1 }}>
+                                    <div style={{
+                                      width: "40px", height: "40px", borderRadius: "50%", flexShrink: 0,
+                                      background: isToday ? "#1a1a2e" : "#fff",
+                                      border: `2px solid ${isToday ? "#1a1a2e" : "#c0cce0"}`,
+                                      display: "flex", alignItems: "center", justifyContent: "center",
+                                      fontSize: "13px", fontWeight: 700, color: isToday ? "#fff" : "#2d2b55",
+                                    }}>{visitNum}</div>
+                                    <div style={{
+                                      flex: 1, background: "#fff", borderRadius: "10px",
+                                      border: `1px solid ${isToday ? "#2d2b55" : "#e8e8e8"}`,
+                                      borderTop: `3px solid ${isToday ? "#1a1a2e" : "#e0e4f0"}`,
+                                      padding: "14px 16px",
+                                      boxShadow: isToday ? "0 2px 12px rgba(26,26,46,0.08)" : "none",
+                                    }}>
+                                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "10px", flexWrap: "wrap", gap: "6px" }}>
+                                        <div>
+                                          <div style={{ fontSize: "16px", fontWeight: 700, color: isToday ? "#1a1a2e" : "#2d2b55" }}>
+                                            {isToday ? "Today's visit" : formatVisitDate(visit.date)}
+                                          </div>
+                                          {!isToday && (
+                                            <div style={{ fontSize: "12px", color: "#888", marginTop: "2px" }}>
+                                              {visit.date.toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
+                                            </div>
+                                          )}
+                                        </div>
+                                        <span style={{ fontSize: "12px", color: "#888", background: "#f4f6fb", padding: "4px 10px", borderRadius: "12px", fontWeight: 600 }}>
+                                          {formatAgeAtVisit(dobDate, visit.date)}
+                                        </span>
+                                      </div>
+                                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                                        {visit.vaccines.map((vac, vi2) => {
+                                          const t = TYPES[vac.type];
+                                          return (
+                                            <div key={vi2} style={{
+                                              display: "flex", alignItems: "center", gap: "10px",
+                                              padding: "8px 12px", borderRadius: "7px",
+                                              background: t.bg, border: `1px solid ${t.color}22`,
+                                            }}>
+                                              <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: t.color, flexShrink: 0 }} />
+                                              <div style={{ flex: 1 }}>
+                                                <span style={{ fontSize: "14px", fontWeight: 700, color: "#1a1a2e" }}>{vac.name}</span>
+                                                <span style={{ fontSize: "12px", color: "#777", marginLeft: "8px" }}>Dose {vac.doseNum}/{vac.totalDoses}</span>
+                                                {!vac.isFunded && (
+                                                  <span style={{ 
+                                                    fontSize: "11px", 
+                                                    fontWeight: 700, 
+                                                    color: "#dc2626", 
+                                                    marginLeft: "6px",
+                                                    padding: "2px 5px",
+                                                    background: "#fee2e2",
+                                                    borderRadius: "3px"
+                                                  }}>$</span>
+                                                )}
+                                              </div>
+                                              <div style={{ fontSize: "11px", color: "#888", whiteSpace: "nowrap" }}>{vac.brand} · {vac.route}</div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </>
+                        )}
+                      </>
+                    );
+                  })()}
+                </>
+              ) : null}
+
+              {/* Complete + not-yet-due disclosures */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "20px" }}>
+                {result.complete.length > 0 && (
+                  <div>
+                    <button onClick={() => setShowComplete(p => !p)} style={{
+                      background: "none", border: "none", cursor: "pointer", fontFamily: "inherit",
+                      fontSize: "13px", color: "#0D6E3F", fontWeight: 600, padding: "0", display: "flex", alignItems: "center", gap: "6px",
+                    }}>
+                      <span style={{ transform: showComplete ? "rotate(90deg)" : "none", display: "inline-block", transition: "transform 0.2s", fontSize: "10px" }}>▶</span>
+                      ✓ {result.complete.length} series up to date
+                    </button>
+                    {showComplete && (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "8px", paddingLeft: "18px" }}>
+                        {result.complete.map(s => (
+                          <span key={s.id} style={{ fontSize: "12px", padding: "4px 12px", borderRadius: "16px", background: "#f0faf4", color: "#0D6E3F", border: "1px solid #b7e5c6", fontWeight: 600 }}>
+                            ✓ {s.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {result.notYetDue && result.notYetDue.length > 0 && (
+                  <div>
+                    <button onClick={() => setShowNotYetDue(p => !p)} style={{
+                      background: "none", border: "none", cursor: "pointer", fontFamily: "inherit",
+                      fontSize: "13px", color: "#888", fontWeight: 600, padding: "0", display: "flex", alignItems: "center", gap: "6px",
+                    }}>
+                      <span style={{ transform: showNotYetDue ? "rotate(90deg)" : "none", display: "inline-block", transition: "transform 0.2s", fontSize: "10px" }}>▶</span>
+                      {result.notYetDue.length} series not yet due
+                    </button>
+                    {showNotYetDue && (
+                      <div style={{ marginTop: "8px", paddingLeft: "18px", display: "flex", flexDirection: "column", gap: "6px" }}>
+                        {result.notYetDue.map(s => {
+                          const t = TYPES[s.type];
+                          return (
+                            <div key={s.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", borderRadius: "8px", background: "#f8f8f8", border: "1px solid #eee" }}>
+                              <div>
+                                <span style={{ fontSize: "13px", fontWeight: 600, color: "#555" }}>{s.name}</span>
+                                <span style={{ fontSize: "11px", color: "#aaa", marginLeft: "8px" }}>{s.brand}</span>
+                              </div>
+                              <span style={{ fontSize: "11px", color: "#888", background: "#f0f0f0", padding: "3px 8px", borderRadius: "10px", fontWeight: 600, whiteSpace: "nowrap" }}>
+                                Due from {s.ageLabel}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <p style={{ fontSize: "11px", color: "#bbb", marginTop: "24px", lineHeight: 1.6 }}>
+                Minimum intervals shown — longer intervals are equally valid. Consult the Australian Immunisation Handbook for complex scenarios including immunocompromised patients.
+              </p>
+            </>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
 
 function TypeBadge({ type }) {
   const t = TYPES[type];
@@ -375,7 +1912,7 @@ function VaccineCard({ item, onClick, selectedState }) {
         </div>
       </div>
       <div style={{ fontSize: "12px", color: "#666", marginTop: "4px" }}>
-        {item.brand} Â· {item.route}
+        {item.brand} · {item.route}
       </div>
       {item._comboSource && (
         <div style={{
@@ -383,7 +1920,7 @@ function VaccineCard({ item, onClick, selectedState }) {
           background: "#FFF8E7", padding: "3px 8px", borderRadius: "4px",
           display: "inline-block"
         }}>
-          ðŸ§¬ Given as <strong>{item._comboSource}</strong> ({item._comboBrand})
+          🧬 Given as <strong>{item._comboSource}</strong> ({item._comboBrand})
         </div>
       )}
     </button>
@@ -408,11 +1945,11 @@ function Modal({ item, onClose }) {
         <button onClick={onClose} style={{
           position: "absolute", top: "12px", right: "16px", background: "none",
           border: "none", fontSize: "22px", cursor: "pointer", color: "#999", fontFamily: "inherit"
-        }}>âœ•</button>
+        }}>✕</button>
         <div style={{ borderLeft: `4px solid ${t.color}`, paddingLeft: "14px", marginBottom: "20px" }}>
           <h3 style={{ margin: 0, fontSize: "20px", color: "#1a1a2e", fontFamily: "'DM Serif Display', Georgia, serif" }}>{item.vaccine}</h3>
           <div style={{ fontSize: "13px", color: "#666", marginTop: "4px" }}>
-            {item.age} Â· {item.brand} Â· {item.route}
+            {item.age} · {item.brand} · {item.route}
           </div>
           <div style={{ marginTop: "8px" }}><TypeBadge type={item.type} /></div>
         </div>
@@ -462,18 +1999,17 @@ function Modal({ item, onClose }) {
           )}
         </div>
         <div style={{ marginTop: "16px", paddingTop: "14px", borderTop: "1px solid #eee", fontSize: "11px", color: "#999" }}>
-          Source: Australian Immunisation Handbook Â· NIP Schedule Jan 2026
+          Source: Australian Immunisation Handbook · NIP Schedule {SCHEDULE_VERSION}
         </div>
       </div>
     </div>
   );
 }
 
-function Timeline({ viewMode = "combo", onSelect, stateFilter = "ALL", ageFilter = "All ages", typeFilter = "all" }) {
+function Timeline({ onSelect, stateFilter = "ALL", ageFilter = "All ages", typeFilter = "all" }) {
   const scrollRef = useRef(null);
   
-  // In combo mode: show vaccine products as administered
-  // In components mode: show individual antigens
+  // Show vaccine products as administered (combination vaccines)
   const COMBO_VACCINES = [
     { label: "Hep B",     key: "HepB" },
     { label: "Nirsevimab", key: "Nirsev" },
@@ -494,7 +2030,7 @@ function Timeline({ viewMode = "combo", onSelect, stateFilter = "ALL", ageFilter
     { label: "dTpa",      key: "dTpa" },
   ];
 
-  const rows = viewMode === "components" ? TIMELINE_ANTIGENS : COMBO_VACCINES;
+  const rows = COMBO_VACCINES;
   const W = 920;
   const H = rows.length * 38 + 66;
   const left = 115;
@@ -516,32 +2052,7 @@ function Timeline({ viewMode = "combo", onSelect, stateFilter = "ALL", ageFilter
 
   const weekMap = { 0: 0, 0.5: 3, 1: 6, 2: 16, 3: 24, 3.5: 26, 4: 48, 5: 72, 5.5: 76, 6: 192, 7: 576, 8: 720, 8.5: 750 };
 
-  // Components mode: map through COMBO_MAP to find all doses containing this antigen
-  const getDotsForAntigen = (antigenKey) => {
-    const dots = [];
-    const seen = new Set();
-    SCHEDULE_DATA.forEach(d => {
-      if (d.ageSort > 8.5) return;
-      const antigens = COMBO_MAP[d.shortName] || [];
-      if (antigens.includes(antigenKey)) {
-        const x = weekMap[d.ageSort] || 0;
-        const dedupKey = `${x}-${d.type}`;
-        if (!seen.has(dedupKey)) {
-          seen.add(dedupKey);
-          const isCombo = antigens.length > 1;
-          // Check if this vaccine matches filters
-          const matchesAge = ageFilter === "All ages" || d.age === ageFilter;
-          const matchesType = typeFilter === "all" || d.type === typeFilter;
-          const isFunded = isFundedInState(d, stateFilter);
-          const visible = matchesAge && matchesType;
-          dots.push({ x, type: d.type, isCombo, vaccine: d, visible, isFunded });
-        }
-      }
-    });
-    return dots;
-  };
-
-  // Combo mode: direct shortName match
+  // Get dots for combo vaccine (direct shortName match)
   const getDotsForCombo = (shortName) => {
     const dots = [];
     const seen = new Set();
@@ -557,7 +2068,7 @@ function Timeline({ viewMode = "combo", onSelect, stateFilter = "ALL", ageFilter
           const matchesType = typeFilter === "all" || d.type === typeFilter;
           const isFunded = isFundedInState(d, stateFilter);
           const visible = matchesAge && matchesType;
-          dots.push({ x, type: d.type, isCombo: false, vaccine: d, visible, isFunded });
+          dots.push({ x, type: d.type, vaccine: d, visible, isFunded });
         }
       }
     });
@@ -577,21 +2088,9 @@ function Timeline({ viewMode = "combo", onSelect, stateFilter = "ALL", ageFilter
         {/* Rows */}
         {rows.map((row, i) => {
           const y = 56 + i * 38;
-          const dots = viewMode === "components" ? getDotsForAntigen(row.key) : getDotsForCombo(row.key);
+          const dots = getDotsForCombo(row.key);
           const handleLabelClick = onSelect ? () => {
-            // In combo mode, match by shortName; in components mode, find any item containing this antigen
-            let item;
-            if (viewMode === "combo") {
-              item = SCHEDULE_DATA.find(d => d.shortName === row.key);
-            } else {
-              item = SCHEDULE_DATA.find(d => {
-                const antigens = COMBO_MAP[d.shortName] || [];
-                return antigens.includes(row.key) && antigens.length === 1;
-              }) || SCHEDULE_DATA.find(d => {
-                const antigens = COMBO_MAP[d.shortName] || [];
-                return antigens.includes(row.key);
-              });
-            }
+            const item = SCHEDULE_DATA.find(d => d.shortName === row.key);
             if (item) onSelect(item);
           } : undefined;
           return (
@@ -632,14 +2131,8 @@ function Timeline({ viewMode = "combo", onSelect, stateFilter = "ALL", ageFilter
                   }
                   
                   return (
-                    <g key={j}>
-                      <circle cx={xScale(d.x) + offset} cy={y} r={6.5}
-                        fill={TYPES[d.type].color} opacity={dotOpacity} />
-                      {d.isCombo && (
-                        <circle cx={xScale(d.x) + offset} cy={y} r={6.5}
-                          fill="none" stroke="#fff" strokeWidth={2} opacity={dotOpacity * 0.9} />
-                      )}
-                    </g>
+                    <circle key={j} cx={xScale(d.x) + offset} cy={y} r={6.5}
+                      fill={TYPES[d.type].color} opacity={dotOpacity} />
                   );
                 });
               })()}
@@ -658,14 +2151,14 @@ function PregnancyTimeline({ onSelect }) {
   const right = W - 30;
   const span = right - left;
 
-  // Gestational weeks 0â€“40
+  // Gestational weeks 0–40
   const wkToX = (wk) => left + (wk / 40) * span;
   const ticks = [0, 8, 16, 20, 24, 28, 32, 36, 40];
 
   const vaccines = [
     { label: "Influenza", color: TYPES.routine.color, startWk: 0, endWk: 40, noteY: 60, note: "Any trimester", shortName: "Flu" },
-    { label: "Pertussis (dTpa)", color: TYPES.routine.color, startWk: 20, endWk: 32, noteY: 100, note: "Ideally 20â€“32 wks", shortName: "dTpa", idealStart: 20, idealEnd: 32, extendEnd: 40 },
-    { label: "RSV (Abrysvo)", color: TYPES.routine.color, startWk: 28, endWk: 36, noteY: 140, note: "28â€“36 wks (NIP-funded)", shortName: "RSV", idealStart: 28, idealEnd: 36, extendEnd: 40 },
+    { label: "Pertussis (dTpa)", color: TYPES.routine.color, startWk: 20, endWk: 32, noteY: 100, note: "Ideally 20–32 wks", shortName: "dTpa", idealStart: 20, idealEnd: 32, extendEnd: 40 },
+    { label: "RSV (Abrysvo)", color: TYPES.routine.color, startWk: 28, endWk: 36, noteY: 140, note: "28–36 wks (NIP-funded)", shortName: "RSV", idealStart: 28, idealEnd: 36, extendEnd: 40 },
   ];
 
   const handleClick = (shortName) => {
@@ -742,11 +2235,11 @@ function ReferenceCards({ onSelect }) {
             </div>
             {details && (
               <p style={{ fontSize: "12px", color: "#777", margin: "8px 0 0", lineHeight: 1.5 }}>
-                {details.diseases?.slice(0, 100)}{details.diseases?.length > 100 ? "â€¦" : ""}
+                {details.diseases?.slice(0, 100)}{details.diseases?.length > 100 ? "…" : ""}
               </p>
             )}
             <div style={{ fontSize: "11px", color: t.color, marginTop: "8px", fontWeight: 600 }}>
-              View details â†’
+              View details →
             </div>
           </button>
         );
@@ -772,19 +2265,19 @@ function FAQ() {
     },
     {
       q: "What vaccines are recommended in pregnancy?",
-      a: "Three vaccines are recommended in every pregnancy: Pertussis (dTpa/Boostrix) at 20â€“32 weeks gestation to provide passive antibody protection to the newborn. Influenza vaccine at any trimester. RSV vaccine (Abrysvo) from 28 weeks gestation â€” NIP-funded from February 2025. Abrysvo provides passive RSV protection to the infant for approximately 6 months. Only Abrysvo is approved for pregnancy â€” Arexvy must NOT be used."
+      a: "Three vaccines are recommended in every pregnancy: Pertussis (dTpa/Boostrix) at 20–32 weeks gestation to provide passive antibody protection to the newborn. Influenza vaccine at any trimester. RSV vaccine (Abrysvo) from 28 weeks gestation — NIP-funded from February 2025. Abrysvo provides passive RSV protection to the infant for approximately 6 months. Only Abrysvo is approved for pregnancy — Arexvy must NOT be used."
     },
     {
       q: "What about nirsevimab (Beyfortus) for RSV?",
-      a: "Nirsevimab is a long-acting monoclonal antibody (not a vaccine) that protects infants against RSV. It is state/territory-funded â€” not on the NIP. It is given to eligible infants whose mothers did not receive Abrysvo, who were vaccinated less than 2 weeks before delivery, or who have medical risk factors for severe RSV. Seasonal programs typically run Aprilâ€“September but eligibility and timing vary by jurisdiction."
+      a: "Nirsevimab is a long-acting monoclonal antibody (not a vaccine) that protects infants against RSV. It is state/territory-funded — not on the NIP. It is given to eligible infants whose mothers did not receive Abrysvo, who were vaccinated less than 2 weeks before delivery, or who have medical risk factors for severe RSV. Seasonal programs typically run April–September but eligibility and timing vary by jurisdiction."
     },
     {
       q: "What about Meningococcal B (Bexsero) for non-Indigenous children?",
-      a: "Bexsero is recommended by ATAGI for ALL infants under 2 years and ALL adolescents 15â€“19 years â€” but is not NIP-funded for non-Indigenous children. It is state-funded in SA, QLD, and NT. In Victoria and other states, parents need a private prescription (~$110â€“135 per dose). MenB is the most common serogroup causing invasive meningococcal disease in Australia."
+      a: "Bexsero is recommended by ATAGI for ALL infants under 2 years and ALL adolescents 15–19 years — but is not NIP-funded for non-Indigenous children. It is state-funded in SA, QLD, and NT. In Victoria and other states, parents need a private prescription (~$110–135 per dose). MenB is the most common serogroup causing invasive meningococcal disease in Australia."
     },
     {
       q: "Should my child have a second varicella dose?",
-      a: "Yes â€” ATAGI recommends a 2nd dose of varicella vaccine for all children aged 12 months to under 14 years. However, the 2nd dose is NOT NIP-funded. A single dose (given as MMRV at 18 months) provides ~70% protection, while 2 doses give >90% protection and significantly reduce breakthrough varicella. The 2nd dose can be given â‰¥4 weeks after the first, using monovalent varicella vaccine (Varilrix)."
+      a: "Yes — ATAGI recommends a 2nd dose of varicella vaccine for all children aged 12 months to under 14 years. However, the 2nd dose is NOT NIP-funded. A single dose (given as MMRV at 18 months) provides ~70% protection, while 2 doses give >90% protection and significantly reduce breakthrough varicella. The 2nd dose can be given ≥4 weeks after the first, using monovalent varicella vaccine (Varilrix)."
     },
     {
       q: "What if my child missed a vaccine dose?",
@@ -796,7 +2289,7 @@ function FAQ() {
     },
     {
       q: "Is the Rotavirus vaccine time-critical?",
-      a: "Yes â€” it has strict age limits. Dose 1 (Rotarix) must be given by 14 weeks of age, and dose 2 by 24 weeks of age. The series cannot be started or continued beyond these windows due to a small increased risk of intussusception with later doses."
+      a: "Yes — it has strict age limits. Dose 1 (Rotarix) must be given by 14 weeks of age, and dose 2 by 24 weeks of age. The series cannot be started or continued beyond these windows due to a small increased risk of intussusception with later doses."
     },
   ];
 
@@ -824,29 +2317,29 @@ function FAQ() {
   );
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ----------------------------------------------
 // Patient Schedule Calculator
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ----------------------------------------------
 
-// ageSort â†’ weeks since birth (childhood + adult)
+// ageSort → weeks since birth (childhood + adult)
 const AGESORT_WEEKS = {
   0: 0,       // Birth
   0.5: 3,     // Nirsevimab seasonal
   1: 6,       // 6 weeks
   2: 16,      // 4 months
   3: 24,      // 6 months
-  3.5: 26,    // Flu starts (6mâ€“5y)
-  4: 48,      // 12 months
+  3.5: 26,    // Flu starts (6m–5y)
+  4: 52,      // 12 months
   5: 72,      // 18 months
   5.5: 76,    // 18m+ (VZV 2nd dose)
   6: 192,     // 4 years
   7: 576,     // Year 7 (~12y)
   8: 720,     // Year 10 (~15y)
-  8.5: 750,   // 15â€“19y MenB
-  // 9 = pregnancy â€” handled separately
-  9.5: 2600,  // â‰¥50y ATSI
-  10: 3380,   // â‰¥65y
-  11: 3640,   // â‰¥70y
+  8.5: 750,   // 15–19y MenB
+  // 9 = pregnancy — handled separately
+  9.5: 2600,  // ≥50y ATSI
+  10: 3380,   // ≥65y
+  11: 3640,   // ≥70y
 };
 
 function formatRelativeWeeks(weeks) {
@@ -886,10 +2379,22 @@ function formatAgeAtDate(dobDate, targetDate) {
 }
 
 function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
-  const [dob, setDob] = useState("");
+  const [dob, setDob] = useState(() => {
+    try {
+      return sessionStorage.getItem("patient_dob") || "";
+    } catch { return ""; }
+  });
   const [pdfLoading, setPdfLoading] = useState(false);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+
+  // Persist dob to sessionStorage
+  useEffect(() => {
+    try {
+      if (dob) sessionStorage.setItem("patient_dob", dob);
+      else sessionStorage.removeItem("patient_dob");
+    } catch {}
+  }, [dob]);
 
   const dobDate = useMemo(() => {
     if (!dob) return null;
@@ -936,7 +2441,7 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
     return { overdue, upcoming, nextDue };
   }, [dobDate, stateFilter]);
 
-  // â”€â”€ PDF generation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- PDF generation ----------------------------------------------------
   const loadJsPDF = () => new Promise((resolve, reject) => {
     if (window.jspdf) { resolve(window.jspdf); return; }
     const script = document.createElement("script");
@@ -956,7 +2461,7 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
       const W = 210; const H = 297;
       const ML = 18; const MR = 18; const CW = W - ML - MR;
 
-      // â”€â”€ helpers â”€â”€
+      // -- helpers --
       const hex2rgb = h => {
         const r = parseInt(h.slice(1,3),16), g = parseInt(h.slice(3,5),16), b = parseInt(h.slice(5,7),16);
         return [r, g, b];
@@ -973,7 +2478,7 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
       const stateName = stateFilter === "ALL" ? "All states/territories" : STATES[stateFilter];
       const todayStr = formatDate(today);
 
-      // â”€â”€ HEADER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // -- HEADER ------------------------------------------------------
       setFill("#1a1a2e"); doc.rect(0, 0, W, 42, "F");
       // Subtle accent stripe
       setFill("#2d2b55"); doc.rect(0, 38, W, 4, "F");
@@ -993,7 +2498,7 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
       doc.text(`Generated ${todayStr}`, W - MR, 16, { align: "right" });
       doc.text("nip.terrific.website", W - MR, 21, { align: "right" });
 
-      // â”€â”€ PATIENT CARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // -- PATIENT CARD -------------------------------------------------
       setFill("#F4F6FB"); doc.roundedRect(ML, 48, CW, 22, 3, 3, "F");
       setFill("#1a1a2e"); doc.rect(ML, 48, 4, 22, "F");
 
@@ -1010,7 +2515,7 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
       doc.setFontSize(11);
       doc.text(stateName, ML + 120, 64);
 
-      // â”€â”€ SECTION RENDERER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // -- SECTION RENDERER ----------------------------------------------
       let y = 80;
       const PAGE_BOTTOM = 272;
       const ROW_H = 16;
@@ -1139,7 +2644,7 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
         y += 6;
       }
 
-      // â”€â”€ NEXT VACCINE DUE (beyond the 2-month window) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // -- NEXT VACCINE DUE (beyond the 2-month window) ---------------------
       const nextBeyond = schedule.nextDue && schedule.nextDue.weeksFromNow > 8.7 ? schedule.nextDue : null;
       if (nextBeyond) {
         checkPageBreak(22);
@@ -1172,9 +2677,9 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
         y += 24;
       }
 
-      // â”€â”€ FOOTER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // -- FOOTER -------------------------------------------------------
       // Footer on last page
-      const footerY = H - 22;
+      const footerY = H - 25;
       setStroke("#E0E0E0");
       doc.setLineWidth(0.3);
       doc.line(ML, footerY - 2, W - MR, footerY - 2);
@@ -1185,11 +2690,15 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
 
       doc.setFont("helvetica", "normal"); doc.setFontSize(7);
       setTextColor("#AAAAAA");
-      doc.text(`Data source: Australian Immunisation Handbook & NIP Schedule (Jan 2026)  \u00B7  nip.terrific.website`, ML, footerY + 7);
+      doc.text(`Data source: Australian Immunisation Handbook & NIP Schedule (${SCHEDULE_VERSION})  \u00B7  nip.terrific.website`, ML, footerY + 7);
+
+      doc.setFont("helvetica", "normal"); doc.setFontSize(6.5);
+      setTextColor("#CCCCCC");
+      doc.text(`Schedule data: ${SCHEDULE_VERSION} \u00B7 Site version: ${SITE_VERSION}`, ML, footerY + 11);
 
       doc.setFont("helvetica", "italic"); doc.setFontSize(7);
       setTextColor("#BBBBBB");
-      doc.text("Dr Marc Theilhaber \u00B7 Dept of Respiratory Medicine \u00B7 Monash Children's Hospital", ML, footerY + 12);
+      doc.text("Dr Marc Theilhaber \u00B7 Dept of Respiratory Medicine \u00B7 Monash Children's Hospital", ML, footerY + 15);
 
       // Page numbers on all pages
       const pageCount = doc.getNumberOfPages();
@@ -1210,7 +2719,7 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
       setPdfLoading(false);
     }
   };
-  // â”€â”€ end PDF generation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- end PDF generation ------------------------------------------------
 
   const stateName = stateFilter === "ALL" ? "all states" : STATES[stateFilter];
 
@@ -1236,7 +2745,7 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
             )}
           </div>
           <div style={{ fontSize: "12px", color: "#888", marginTop: "3px" }}>
-            {item.brand} Â· {item.route}
+            {item.brand} · {item.route}
           </div>
         </div>
         <div style={{ textAlign: "right", flexShrink: 0 }}>
@@ -1393,12 +2902,12 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
       {dobDate && totalCount > 0 && (
         <>
           <SectionBlock
-            title="Recently due â€” confirm in AIR" items={schedule.overdue} status="overdue"
-            color="#c0392b" bg="#fff0f0" icon={"âš ï¸"}
+            title="Recently due — confirm in AIR" items={schedule.overdue} status="overdue"
+            color="#c0392b" bg="#fff0f0" icon={"⚠️"}
           />
           <SectionBlock
             title="Due in next 2 months" items={schedule.upcoming} status="upcoming"
-            color="#1D4ED8" bg="#eff6ff" icon={"ðŸ“…"}
+            color="#1D4ED8" bg="#eff6ff" icon={"📅"}
           />
         </>
       )}
@@ -1424,7 +2933,7 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
                 {nextBeyond.vaccine}
               </div>
               <div style={{ fontSize: "12px", color: "#888", marginTop: "2px" }}>
-                {nextBeyond.brand} Â· {nextBeyond.route}
+                {nextBeyond.brand} · {nextBeyond.route}
               </div>
             </div>
             <div style={{ textAlign: "right", flexShrink: 0 }}>
@@ -1454,16 +2963,43 @@ export default function AustralianNIPSchedule() {
   const [stateFilter, setStateFilter] = useState("ALL");
   const [activeSection, setActiveSection] = useState("schedule");
   const [selectedItem, setSelectedItem] = useState(null);
-  const [viewMode, setViewMode] = useState("combo"); // "combo" or "components"
+  const [openAgeGroups, setOpenAgeGroups] = useState(new Set()); // Set of open age groups, empty = all closed
+  const [searchQuery, setSearchQuery] = useState("");
+  const [quickFilters, setQuickFilters] = useState(new Set()); // Set of active quick filters
+  const ageGroupRefs = useRef({});
 
   const filtered = useMemo(() => {
-    const source = viewMode === "components" ? expandScheduleData(SCHEDULE_DATA) : SCHEDULE_DATA;
-    return source.filter(d => {
+    return SCHEDULE_DATA.filter(d => {
+      // Standard filters
       if (ageFilter !== "All ages" && d.age !== ageFilter) return false;
       if (typeFilter !== "all" && d.type !== typeFilter) return false;
+      
+      // Search filter - improved to search word boundaries
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const searchable = `${d.vaccine} ${d.shortName} ${d.brand} ${d.notes}`.toLowerCase();
+        
+        // Split into words and check if any word starts with the query
+        const words = searchable.split(/[\s,\-\(\)\/]+/);
+        const matches = words.some(word => word.startsWith(query));
+        
+        if (!matches) return false;
+      }
+      
+      // Quick filters
+      if (quickFilters.size > 0) {
+        let matches = false;
+        if (quickFilters.has("infant") && ["Birth", "6 weeks", "4 months", "6 months", "12 months", "18 months"].includes(d.age)) matches = true;
+        if (quickFilters.has("preschool") && ["4 years"].includes(d.age)) matches = true;
+        if (quickFilters.has("school") && ["Year 7 (12–13 yrs)", "Year 10 (15–16 yrs)", "15–19 years"].includes(d.age)) matches = true;
+        if (quickFilters.has("pregnancy") && d.age === "Pregnancy") matches = true;
+        if (quickFilters.has("adult") && ["≥50 years (ATSI)", "≥65 years", "≥70 years"].includes(d.age)) matches = true;
+        if (!matches) return false;
+      }
+      
       return true;
     });
-  }, [ageFilter, typeFilter, viewMode]);
+  }, [ageFilter, typeFilter, searchQuery, quickFilters]);
 
   const grouped = useMemo(() => {
     const groups = {};
@@ -1478,10 +3014,58 @@ export default function AustralianNIPSchedule() {
     });
   }, [filtered]);
 
-  const selectedAgeGroup = useMemo(() => {
-    if (ageFilter === "All ages") return null;
-    return grouped.find(([age]) => age === ageFilter);
+  // Filter groups based on age tab selection
+  const displayedGroups = useMemo(() => {
+    if (ageFilter === "All ages") return grouped;
+    return grouped.filter(([age]) => age === ageFilter);
   }, [grouped, ageFilter]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    if (activeSection !== "schedule") return;
+    
+    const handleKeyDown = (e) => {
+      // Don't trigger if user is typing in an input
+      if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT" || e.target.tagName === "TEXTAREA") return;
+      
+      // Space or Enter: toggle first closed group (or first group if all closed)
+      if (e.key === " " || e.key === "Enter") {
+        e.preventDefault();
+        const firstClosedAge = grouped.find(([age]) => !openAgeGroups.has(age))?.[0];
+        if (firstClosedAge) {
+          setOpenAgeGroups(prev => {
+            const next = new Set(prev);
+            next.add(firstClosedAge);
+            return next;
+          });
+          // Scroll to it
+          setTimeout(() => {
+            ageGroupRefs.current[firstClosedAge]?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          }, 100);
+        }
+      }
+      
+      // E: Expand all
+      if (e.key === "e" || e.key === "E") {
+        const allAges = grouped.map(([age]) => age);
+        setOpenAgeGroups(new Set(allAges));
+      }
+      
+      // C: Collapse all
+      if (e.key === "c" || e.key === "C") {
+        setOpenAgeGroups(new Set());
+      }
+      
+      // /: Focus search
+      if (e.key === "/") {
+        e.preventDefault();
+        document.querySelector('input[placeholder*="Search"]')?.focus();
+      }
+    };
+    
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeSection, grouped, openAgeGroups]);
 
   const selectStyle = {
     padding: "8px 12px", borderRadius: "8px", border: "1px solid #d0d0d0",
@@ -1525,7 +3109,7 @@ export default function AustralianNIPSchedule() {
         }} />
         <div style={{ position: "relative", maxWidth: "680px", margin: "0 auto" }}>
           <div style={{ fontSize: "12px", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", opacity: 0.7, marginBottom: "12px" }}>
-            National Immunisation Program Â· January 2026
+            National Immunisation Program · January 2026
           </div>
           <h1 style={{
             fontFamily: "'DM Serif Display', Georgia, serif",
@@ -1566,6 +3150,7 @@ export default function AustralianNIPSchedule() {
       }}>
         {navBtn("schedule", "Schedule by Age")}
         {navBtn("patient", "My Patient")}
+        {navBtn("catchup", "Catch-up Calculator")}
         {navBtn("reference", "Vaccine Reference")}
         {navBtn("faq", "FAQ")}
       </nav>
@@ -1578,10 +3163,251 @@ export default function AustralianNIPSchedule() {
             <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: "26px", fontWeight: 400, margin: "0 0 6px" }}>Schedule by Age</h2>
             <p style={{ color: "#777", fontSize: "14px", margin: "0 0 20px" }}>Overview of all childhood vaccines. Tap any card below for full details.</p>
 
-            {/* Filter controls - state and type only */}
-            <div style={{ marginBottom: "20px" }}>
-              <div style={{ fontSize: "13px", color: "#888", fontWeight: 600, marginBottom: "8px" }}>
-                Filter by:
+            {/* Quick Links */}
+            <div style={{
+              background: "#fff",
+              borderRadius: "12px",
+              border: "1px solid #e8e8e8",
+              padding: "16px 20px",
+              marginBottom: "24px",
+            }}>
+              <div style={{ fontSize: "12px", color: "#888", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "10px" }}>
+                Jump to:
+              </div>
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                {[
+                  { label: "📊 Timeline", id: "timeline" },
+                  { label: "🔍 Search & Filter", id: "search" },
+                  { label: "📅 Vaccines by Age", id: "by-age" },
+                  { label: "🤰 Pregnancy", id: "pregnancy" },
+                ].map(link => (
+                  <button
+                    key={link.id}
+                    onClick={() => {
+                      const element = document.getElementById(link.id);
+                      if (element) {
+                        element.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }
+                    }}
+                    style={{
+                      padding: "8px 14px",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      border: "1px solid #e0e0e0",
+                      borderRadius: "8px",
+                      background: "#fff",
+                      color: "#2d2b55",
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                      transition: "all 0.2s ease",
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = "#f8f9fa";
+                      e.currentTarget.style.borderColor = "#2d2b55";
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = "#fff";
+                      e.currentTarget.style.borderColor = "#e0e0e0";
+                    }}
+                  >
+                    {link.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Timeline overview */}
+            <div id="timeline" style={{ background: "#fff", borderRadius: "12px", border: "1px solid #e8e8e8", padding: "16px", overflow: "hidden", marginBottom: "12px" }}>
+              <Timeline 
+                onSelect={setSelectedItem}
+                stateFilter={stateFilter}
+                ageFilter={ageFilter}
+                typeFilter={typeFilter}
+              />
+            </div>
+            <div style={{ marginBottom: "24px" }}>
+              <div style={{ fontSize: "11px", fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "8px" }}>
+                Vaccine Categories:
+              </div>
+              <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
+                {Object.entries(TYPES).map(([key, val]) => (
+                  <span key={key} style={{ 
+                    display: "inline-flex", 
+                    alignItems: "center", 
+                    gap: "6px", 
+                    fontSize: "13px", 
+                    color: "#333",
+                    fontWeight: 500,
+                  }}>
+                    <span style={{ 
+                      width: "12px", 
+                      height: "12px", 
+                      borderRadius: "50%", 
+                      background: val.color, 
+                      display: "inline-block",
+                      border: "1px solid rgba(0,0,0,0.1)",
+                      flexShrink: 0,
+                    }} />
+                    {val.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Search & Filter Section */}
+            <div id="search">
+              <h3 style={{ fontSize: "18px", fontWeight: 700, color: "#1a1a2e", margin: "0 0 16px", paddingTop: "12px" }}>
+                Search & Filter Vaccines
+              </h3>
+
+              {/* Search Bar */}
+              <div style={{ marginBottom: "16px" }}>
+              <input
+                type="text"
+                placeholder="Search vaccines by name, brand, or keyword... (press / to focus)"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "12px 16px",
+                  fontSize: "14px",
+                  border: "2px solid #e0e0e0",
+                  borderRadius: "10px",
+                  fontFamily: "inherit",
+                  background: "#fff",
+                  transition: "border-color 0.2s ease",
+                  boxSizing: "border-box",
+                }}
+                onFocus={e => { e.currentTarget.style.borderColor = "#2d2b55"; }}
+                onBlur={e => { e.currentTarget.style.borderColor = "#e0e0e0"; }}
+              />
+            </div>
+
+            {/* Quick Filter Chips */}
+            <div style={{ marginBottom: "16px" }}>
+              <div style={{ fontSize: "12px", color: "#888", fontWeight: 600, marginBottom: "8px" }}>
+                Quick filters:
+              </div>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                {[
+                  { id: "infant", label: "Infants (birth-18m)", icon: "👶" },
+                  { id: "preschool", label: "Preschool (4y)", icon: "🎨" },
+                  { id: "school", label: "School age", icon: "🎒" },
+                  { id: "pregnancy", label: "Pregnancy", icon: "🤰" },
+                  { id: "adult", label: "Adults", icon: "👤" },
+                ].map(filter => {
+                  const isActive = quickFilters.has(filter.id);
+                  return (
+                    <button
+                      key={filter.id}
+                      onClick={() => {
+                        setQuickFilters(prev => {
+                          const next = new Set(prev);
+                          if (next.has(filter.id)) next.delete(filter.id);
+                          else next.add(filter.id);
+                          return next;
+                        });
+                      }}
+                      style={{
+                        padding: "6px 12px",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        border: `2px solid ${isActive ? "#2d2b55" : "#e0e0e0"}`,
+                        borderRadius: "20px",
+                        background: isActive ? "#2d2b55" : "#fff",
+                        color: isActive ? "#fff" : "#666",
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                        transition: "all 0.2s ease",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                      onMouseEnter={e => {
+                        if (!isActive) {
+                          e.currentTarget.style.borderColor = "#2d2b55";
+                          e.currentTarget.style.color = "#2d2b55";
+                        }
+                      }}
+                      onMouseLeave={e => {
+                        if (!isActive) {
+                          e.currentTarget.style.borderColor = "#e0e0e0";
+                          e.currentTarget.style.color = "#666";
+                        }
+                      }}
+                    >
+                      <span>{filter.icon}</span>
+                      <span>{filter.label}</span>
+                    </button>
+                  );
+                })}
+                {(searchQuery || quickFilters.size > 0) && (
+                  <button
+                    onClick={() => {
+                      setSearchQuery("");
+                      setQuickFilters(new Set());
+                    }}
+                    style={{
+                      padding: "6px 12px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      border: "1px solid #e0e0e0",
+                      borderRadius: "20px",
+                      background: "#fff",
+                      color: "#c0392b",
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                      transition: "all 0.2s ease",
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "#fff0f0"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "#fff"; }}
+                  >
+                    ✕ Clear filters
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Filter dropdowns */}
+            <div style={{ 
+              background: "#fff", 
+              borderRadius: "12px", 
+              border: "1px solid #e8e8e8", 
+              padding: "16px 20px",
+              marginBottom: "20px" 
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "12px" }}>
+                <div style={{ fontSize: "13px", color: "#888", fontWeight: 600 }}>
+                  Filter by:
+                </div>
+                {grouped.length > 0 && (
+                  <button
+                    onClick={() => {
+                      const allAges = grouped.map(([age]) => age);
+                      if (openAgeGroups.size === allAges.length) {
+                        setOpenAgeGroups(new Set()); // Collapse all
+                      } else {
+                        setOpenAgeGroups(new Set(allAges)); // Expand all
+                      }
+                    }}
+                    style={{
+                      padding: "6px 12px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      color: "#555",
+                      background: "#f8f8f8",
+                      border: "1px solid #d0d0d0",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                      transition: "all 0.15s ease",
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "#eeeeee"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "#f8f8f8"; }}
+                  >
+                    {openAgeGroups.size === grouped.length ? "Collapse all" : "Expand all"}
+                  </button>
+                )}
               </div>
               <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
                 <select value={stateFilter} onChange={e => setStateFilter(e.target.value)} style={selectStyle}>
@@ -1594,8 +3420,8 @@ export default function AustralianNIPSchedule() {
               </div>
             </div>
 
-            {/* Age group tabs */}
-            <div style={{ marginBottom: "24px" }}>
+            {/* Age Group Tabs */}
+            <div style={{ marginBottom: "20px" }}>
               <div style={{ fontSize: "13px", color: "#888", fontWeight: 600, marginBottom: "10px" }}>
                 Select age group:
               </div>
@@ -1631,49 +3457,6 @@ export default function AustralianNIPSchedule() {
               </div>
             </div>
 
-            {/* View mode toggle */}
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
-              <span style={{ fontSize: "13px", color: "#888", fontWeight: 600 }}>View as:</span>
-              <div style={{
-                display: "inline-flex", borderRadius: "8px", border: "1px solid #d0d0d0",
-                overflow: "hidden"
-              }}>
-                {[["combo", "Combination vaccines"], ["components", "Individual antigens"]].map(([val, label]) => (
-                  <button key={val} onClick={() => setViewMode(val)} style={{
-                    padding: "7px 14px", border: "none", fontSize: "13px", fontWeight: 600,
-                    fontFamily: "inherit", cursor: "pointer", transition: "all 0.15s ease",
-                    background: viewMode === val ? "#1a1a2e" : "#fff",
-                    color: viewMode === val ? "#fff" : "#555",
-                  }}>{label}</button>
-                ))}
-              </div>
-            </div>
-
-            {/* Timeline overview */}
-            <div style={{ background: "#fff", borderRadius: "12px", border: "1px solid #e8e8e8", padding: "16px", overflow: "hidden", marginBottom: "12px" }}>
-              <Timeline 
-                viewMode={viewMode} 
-                onSelect={setSelectedItem}
-                stateFilter={stateFilter}
-                ageFilter={ageFilter}
-                typeFilter={typeFilter}
-              />
-            </div>
-            <div style={{ display: "flex", gap: "16px", marginBottom: "16px", flexWrap: "wrap" }}>
-              {Object.entries(TYPES).map(([key, val]) => (
-                <span key={key} style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#666" }}>
-                  <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: val.color, display: "inline-block" }} />
-                  {val.label}
-                </span>
-              ))}
-              {viewMode === "components" && (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#666" }}>
-                  <span style={{ width: "12px", height: "12px", borderRadius: "50%", background: "#0D6E3F", display: "inline-block", border: "2px solid #fff", boxShadow: "0 0 0 1px #ccc" }} />
-                  Given as combination vaccine
-                </span>
-              )}
-            </div>
-            
             {/* Filter status indicator */}
             {(stateFilter !== "ALL" || ageFilter !== "All ages" || typeFilter !== "all") && (
               <div style={{ 
@@ -1681,86 +3464,204 @@ export default function AustralianNIPSchedule() {
                 border: "1px solid #F4D89D",
                 borderRadius: "8px", 
                 padding: "8px 12px", 
-                marginBottom: "16px",
+                marginBottom: "20px",
                 fontSize: "12px",
                 color: "#8B6914",
                 display: "flex",
                 alignItems: "center",
                 gap: "8px"
               }}>
-                <span style={{ fontWeight: 600 }}>â„¹ï¸ Filters active:</span>
+                <span style={{ fontWeight: 600 }}>ℹ️ Filters active:</span>
                 <span>
-                  {stateFilter !== "ALL" && `Showing funding for ${STATES[stateFilter]} â€¢ `}
-                  {ageFilter !== "All ages" && `Age: ${ageFilter} â€¢ `}
-                  {typeFilter !== "all" && `Type: ${TYPES[typeFilter].label} â€¢ `}
+                  {stateFilter !== "ALL" && `Showing funding for ${STATES[stateFilter]} • `}
+                  {ageFilter !== "All ages" && `Age: ${ageFilter} • `}
+                  {typeFilter !== "all" && `Type: ${TYPES[typeFilter].label} • `}
                   Faded dots = not funded or filtered out
                 </span>
               </div>
             )}
-
-            {/* Pregnancy timeline */}
-            <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#1a1a2e", margin: "24px 0 10px" }}>
-              Vaccines in Pregnancy
-            </h3>
-            <p style={{ fontSize: "13px", color: "#777", margin: "0 0 12px", lineHeight: 1.5 }}>
-              Timing windows by gestational age. Darker bars = recommended window. Lighter extensions = can still be given if missed.
-            </p>
-            <div style={{ background: "#fff", borderRadius: "12px", border: "1px solid #e8e8e8", padding: "16px", overflow: "hidden", marginBottom: "16px" }}>
-              <PregnancyTimeline onSelect={setSelectedItem} />
             </div>
 
-            {/* Multivalent vaccine legend â€” only in components view */}
-            {viewMode === "components" && (
-              <div style={{
-                background: "#f8f8f6", borderRadius: "8px", padding: "12px 16px",
-                marginBottom: "28px", fontSize: "13px", color: "#555", lineHeight: 1.7
-              }}>
-                <strong style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#888" }}>Combination vaccines</strong>
-                <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", marginTop: "6px" }}>
-                  {MULTIVALENT_LEGEND.map((m, i) => (
-                    <span key={i}>
-                      <strong style={{ color: "#333" }}>{m.combo}</strong>{" "}
-                      <span style={{ color: "#777" }}>({m.ages})</span>
-                      <br />
-                      <span style={{ fontSize: "12px" }}>Contains: {m.contains}</span>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-            {viewMode === "combo" && <div style={{ marginBottom: "12px" }} />}
-
+            {/* Vaccines by Age Group Section */}
+            <div id="by-age">
             {grouped.length === 0 && (
               <p style={{ color: "#999", fontSize: "14px", padding: "32px 0", textAlign: "center" }}>No vaccines match your current filters.</p>
             )}
 
-            {/* Show vaccines for selected age group */}
-            {selectedAgeGroup && (
-              <div style={{ marginBottom: "28px" }}>
-                <h3 style={{
-                  fontSize: "18px", fontWeight: 700, color: "#1a1a2e",
-                  margin: "0 0 14px", padding: "0 0 10px",
-                  borderBottom: "2px solid #2d2b55"
-                }}>{selectedAgeGroup[0]}</h3>
-                {selectedAgeGroup[1].map((item, i) => (
-                  <VaccineCard key={i} item={item} onClick={setSelectedItem} selectedState={stateFilter} />
-                ))}
+            {grouped.length > 0 && (
+              <div style={{ 
+                position: "sticky",
+                top: 0,
+                background: "#FAFAF8",
+                zIndex: 10,
+                paddingTop: "12px",
+                paddingBottom: "12px",
+                marginBottom: "4px",
+                marginLeft: "-20px",
+                marginRight: "-20px",
+                paddingLeft: "20px",
+                paddingRight: "20px",
+              }}>
+                <div style={{ 
+                  display: "flex", 
+                  alignItems: "baseline", 
+                  justifyContent: "space-between",
+                  paddingBottom: "8px",
+                  borderBottom: "2px solid #e8e8e8",
+                  flexWrap: "wrap",
+                  gap: "8px",
+                }}>
+                  <h3 style={{ fontSize: "16px", fontWeight: 700, color: "#1a1a2e", margin: 0 }}>
+                    {ageFilter === "All ages" ? "Vaccines by Age Group" : `Vaccines for ${ageFilter}`}
+                  </h3>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+                    <span style={{ fontSize: "12px", color: "#888" }}>
+                      {filtered.length} {filtered.length === 1 ? "vaccine" : "vaccines"} · {displayedGroups.length} {displayedGroups.length === 1 ? "age group" : "age groups"}
+                    </span>
+                    {ageFilter === "All ages" && (
+                      <button
+                        onClick={() => setSelectedItem({ 
+                          vaccine: "Keyboard Shortcuts",
+                          type: "routine",
+                          age: "",
+                          brand: "",
+                          route: "",
+                          notes: "E = Expand all groups\nC = Collapse all groups\n/ = Focus search bar\nSpace/Enter = Expand first closed group"
+                        })}
+                        style={{
+                          padding: "4px 8px",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          border: "1px solid #d0d0d0",
+                          borderRadius: "6px",
+                          background: "#fff",
+                          color: "#666",
+                          cursor: "pointer",
+                          fontFamily: "inherit",
+                        }}
+                        title="View keyboard shortcuts"
+                      >
+                        ⌨️ Shortcuts
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 
-            {/* Show all ages when "All ages" is selected */}
-            {ageFilter === "All ages" && grouped.map(([age, items]) => (
-              <div key={age} style={{ marginBottom: "28px" }}>
-                <h3 style={{
-                  fontSize: "16px", fontWeight: 700, color: "#1a1a2e",
-                  margin: "0 0 10px", padding: "0 0 8px",
-                  borderBottom: "2px solid #2d2b55", display: "inline-block"
-                }}>{age}</h3>
-                {items.map((item, i) => (
-                  <VaccineCard key={i} item={item} onClick={setSelectedItem} selectedState={stateFilter} />
-                ))}
+            {displayedGroups.map(([age, items]) => {
+              // When a specific age is selected, always show it expanded (no collapsing)
+              const isOpen = ageFilter !== "All ages" || openAgeGroups.has(age);
+              const canToggle = ageFilter === "All ages"; // Only allow toggling in "All ages" view
+              
+              const toggle = () => {
+                if (!canToggle) return;
+                const wasOpen = isOpen;
+                setOpenAgeGroups(prev => {
+                  const base = new Set(prev);
+                  if (base.has(age)) base.delete(age); else base.add(age);
+                  return base;
+                });
+                // Scroll to opened group after a brief delay to let state update
+                if (!wasOpen) {
+                  setTimeout(() => {
+                    ageGroupRefs.current[age]?.scrollIntoView({ 
+                      behavior: "smooth", 
+                      block: "nearest" 
+                    });
+                  }, 100);
+                }
+              };
+              return (
+                <div 
+                  key={age} 
+                  style={{ marginBottom: "8px" }}
+                  ref={el => { if (el) ageGroupRefs.current[age] = el; }}
+                >
+                  {canToggle ? (
+                    <button onClick={toggle} style={{
+                      display: "flex", alignItems: "center", gap: "10px",
+                      background: isOpen ? "#f8f9fa" : "#fff",
+                      border: "1px solid #e0e0e0",
+                      borderRadius: "8px",
+                      cursor: "pointer",
+                      padding: "12px 16px",
+                      marginBottom: isOpen ? "8px" : "0",
+                      width: "100%", textAlign: "left", fontFamily: "inherit",
+                      transition: "all 0.2s ease",
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "#f8f9fa"; e.currentTarget.style.borderColor = "#2d2b55"; }}
+                    onMouseLeave={e => { 
+                      e.currentTarget.style.background = isOpen ? "#f8f9fa" : "#fff"; 
+                      e.currentTarget.style.borderColor = "#e0e0e0";
+                    }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 12 12" style={{
+                        flexShrink: 0,
+                        transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
+                        transition: "transform 0.2s ease",
+                        color: "#2d2b55",
+                      }}>
+                        <polyline points="3,2 9,6 3,10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      <span style={{
+                        fontSize: "15px", fontWeight: 700, color: "#1a1a2e",
+                      }}>{age}</span>
+                      <span style={{
+                        marginLeft: "auto",
+                        fontSize: "11px", fontWeight: 600,
+                        padding: "3px 10px", borderRadius: "12px",
+                      background: isOpen ? "#2d2b55" : "#e8e8e8",
+                      color: isOpen ? "#fff" : "#666",
+                      transition: "all 0.2s",
+                    }}>{items.length} {items.length === 1 ? "vaccine" : "vaccines"}</span>
+                    </button>
+                  ) : (
+                    /* Non-toggleable header when specific age is selected */
+                    <div style={{
+                      display: "flex", alignItems: "center", gap: "10px",
+                      background: "#f8f9fa",
+                      border: "1px solid #e0e0e0",
+                      borderRadius: "8px",
+                      padding: "12px 16px",
+                      marginBottom: "8px",
+                    }}>
+                      <span style={{
+                        fontSize: "15px", fontWeight: 700, color: "#1a1a2e",
+                      }}>{age}</span>
+                      <span style={{
+                        marginLeft: "auto",
+                        fontSize: "11px", fontWeight: 600,
+                        padding: "3px 10px", borderRadius: "12px",
+                        background: "#2d2b55",
+                        color: "#fff",
+                      }}>{items.length} {items.length === 1 ? "vaccine" : "vaccines"}</span>
+                    </div>
+                  )}
+                  {isOpen && (
+                    <div style={{ paddingLeft: "8px" }}>
+                      {items.map((item, i) => (
+                        <VaccineCard key={i} item={item} onClick={setSelectedItem} selectedState={stateFilter} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            </div>
+
+            {/* Pregnancy timeline - moved to bottom */}
+            <div id="pregnancy" style={{ paddingTop: "32px" }}>
+              <h3 style={{ fontSize: "18px", fontWeight: 700, color: "#1a1a2e", margin: "0 0 10px" }}>
+                Vaccines in Pregnancy
+              </h3>
+              <p style={{ fontSize: "13px", color: "#777", margin: "0 0 12px", lineHeight: 1.5 }}>
+                Timing windows by gestational age. Darker bars = recommended window. Lighter extensions = can still be given if missed.
+              </p>
+              <div style={{ background: "#fff", borderRadius: "12px", border: "1px solid #e8e8e8", padding: "16px", overflow: "hidden", marginBottom: "16px" }}>
+                <PregnancyTimeline onSelect={setSelectedItem} />
               </div>
-            ))}
+            </div>
           </section>
         )}
 
@@ -1768,7 +3669,7 @@ export default function AustralianNIPSchedule() {
         {activeSection === "reference" && (
           <section>
             <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: "26px", fontWeight: 400, margin: "0 0 6px" }}>Vaccine Reference Cards</h2>
-            <p style={{ color: "#777", fontSize: "14px", margin: "0 0 20px" }}>Everything about each vaccine in one place â€” schedule, notes and contraindications.</p>
+            <p style={{ color: "#777", fontSize: "14px", margin: "0 0 20px" }}>Everything about each vaccine in one place — schedule, notes and contraindications.</p>
             <ReferenceCards onSelect={setSelectedItem} />
           </section>
         )}
@@ -1788,6 +3689,11 @@ export default function AustralianNIPSchedule() {
         {activeSection === "patient" && (
           <PatientSection stateFilter={stateFilter} setStateFilter={setStateFilter} onSelectVaccine={setSelectedItem} />
         )}
+
+        {/* Catch-up Calculator */}
+        {activeSection === "catchup" && (
+          <CatchupSection stateFilter={stateFilter} setStateFilter={setStateFilter} />
+        )}
       </main>
 
       {/* Footer */}
@@ -1802,16 +3708,21 @@ export default function AustralianNIPSchedule() {
           </a>{" "}and{" "}
           <a href="https://immunisationhandbook.health.gov.au" target="_blank" rel="noopener" style={{ color: "#0D6E3F" }}>
             Australian Immunisation Handbook
-          </a>{" "}(Jan 2026).
+          </a>{" "}({SCHEDULE_VERSION}).
         </p>
         <p style={{ margin: "0 0 8px" }}>Built to support, not replace, clinical judgment. For informational purposes only.</p>
+        <p style={{ margin: "0 0 8px", fontSize: "11px", color: "#aaa" }}>
+          Schedule data: {SCHEDULE_VERSION} · Site version: {SITE_VERSION}
+        </p>
         <p style={{ margin: 0, borderTop: "1px solid #eee", paddingTop: "10px", fontWeight: 600, color: "#777", lineHeight: 1.8 }}>
           Dr Marc Theilhaber<br />
-          Dept of Respiratory Medicine Â· Monash Children's Hospital
+          Dept of Respiratory Medicine · Monash Children's Hospital
         </p>
       </footer>
 
       <Modal item={selectedItem} onClose={() => setSelectedItem(null)} />
+      <Analytics />
+      <SpeedInsights />
     </div>
   );
 }
