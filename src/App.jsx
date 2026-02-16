@@ -1478,6 +1478,11 @@ export default function AustralianNIPSchedule() {
     });
   }, [filtered]);
 
+  const selectedAgeGroup = useMemo(() => {
+    if (ageFilter === "All ages") return null;
+    return grouped.find(([age]) => age === ageFilter);
+  }, [grouped, ageFilter]);
+
   const selectStyle = {
     padding: "8px 12px", borderRadius: "8px", border: "1px solid #d0d0d0",
     fontSize: "13px", background: "#fff", color: "#333", fontFamily: "inherit",
@@ -1730,23 +1735,18 @@ export default function AustralianNIPSchedule() {
             )}
 
             {/* Show vaccines for selected age group */}
-            {ageFilter !== "All ages" && grouped.length > 0 && (() => {
-              const ageGroup = grouped.find(([age]) => age === ageFilter);
-              if (!ageGroup) return null;
-              const [age, items] = ageGroup;
-              return (
-                <div style={{ marginBottom: "28px" }}>
-                  <h3 style={{
-                    fontSize: "18px", fontWeight: 700, color: "#1a1a2e",
-                    margin: "0 0 14px", padding: "0 0 10px",
-                    borderBottom: "2px solid #2d2b55"
-                  }}>{age}</h3>
-                  {items.map((item, i) => (
-                    <VaccineCard key={i} item={item} onClick={setSelectedItem} selectedState={stateFilter} />
-                  ))}
-                </div>
-              );
-            })()}
+            {selectedAgeGroup && (
+              <div style={{ marginBottom: "28px" }}>
+                <h3 style={{
+                  fontSize: "18px", fontWeight: 700, color: "#1a1a2e",
+                  margin: "0 0 14px", padding: "0 0 10px",
+                  borderBottom: "2px solid #2d2b55"
+                }}>{selectedAgeGroup[0]}</h3>
+                {selectedAgeGroup[1].map((item, i) => (
+                  <VaccineCard key={i} item={item} onClick={setSelectedItem} selectedState={stateFilter} />
+                ))}
+              </div>
+            )}
 
             {/* Show all ages when "All ages" is selected */}
             {ageFilter === "All ages" && grouped.map(([age, items]) => (
