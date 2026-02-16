@@ -3426,18 +3426,33 @@ export default function AustralianNIPSchedule() {
                 Select age group:
               </div>
               <div style={{
-                display: "flex", gap: "6px", flexWrap: "wrap", padding: "4px",
-                background: "#f8f8f6", borderRadius: "10px", border: "1px solid #e8e8e8"
+                display: "flex", gap: "8px", flexWrap: "wrap", padding: "6px",
+                background: "#fff", borderRadius: "10px", border: "2px solid #e8e8e8"
               }}>
                 <button
                   onClick={() => setAgeFilter("All ages")}
                   style={{
-                    padding: "8px 14px", borderRadius: "6px", border: "none",
-                    background: ageFilter === "All ages" ? "#1a1a2e" : "transparent",
-                    color: ageFilter === "All ages" ? "#fff" : "#666",
-                    fontSize: "12px", fontWeight: 600, cursor: "pointer",
-                    fontFamily: "inherit", transition: "all 0.15s ease",
-                    whiteSpace: "nowrap"
+                    padding: "9px 16px", 
+                    borderRadius: "7px", 
+                    border: ageFilter === "All ages" ? "2px solid #1a1a2e" : "2px solid transparent",
+                    background: ageFilter === "All ages" ? "#1a1a2e" : "#f8f8f8",
+                    color: ageFilter === "All ages" ? "#fff" : "#555",
+                    fontSize: "12px", fontWeight: 700, cursor: "pointer",
+                    fontFamily: "inherit", transition: "all 0.2s ease",
+                    whiteSpace: "nowrap",
+                    boxShadow: ageFilter === "All ages" ? "0 2px 8px rgba(26,26,46,0.2)" : "none"
+                  }}
+                  onMouseEnter={e => {
+                    if (ageFilter !== "All ages") {
+                      e.currentTarget.style.background = "#e8e8e8";
+                      e.currentTarget.style.borderColor = "#d0d0d0";
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    if (ageFilter !== "All ages") {
+                      e.currentTarget.style.background = "#f8f8f8";
+                      e.currentTarget.style.borderColor = "transparent";
+                    }
                   }}
                 >All ages</button>
                 {AGE_GROUPS.map(age => (
@@ -3445,12 +3460,27 @@ export default function AustralianNIPSchedule() {
                     key={age}
                     onClick={() => setAgeFilter(age)}
                     style={{
-                      padding: "8px 14px", borderRadius: "6px", border: "none",
-                      background: ageFilter === age ? "#1a1a2e" : "transparent",
-                      color: ageFilter === age ? "#fff" : "#666",
-                      fontSize: "12px", fontWeight: 600, cursor: "pointer",
-                      fontFamily: "inherit", transition: "all 0.15s ease",
-                      whiteSpace: "nowrap"
+                      padding: "9px 16px", 
+                      borderRadius: "7px", 
+                      border: ageFilter === age ? "2px solid #1a1a2e" : "2px solid transparent",
+                      background: ageFilter === age ? "#1a1a2e" : "#f8f8f8",
+                      color: ageFilter === age ? "#fff" : "#555",
+                      fontSize: "12px", fontWeight: 700, cursor: "pointer",
+                      fontFamily: "inherit", transition: "all 0.2s ease",
+                      whiteSpace: "nowrap",
+                      boxShadow: ageFilter === age ? "0 2px 8px rgba(26,26,46,0.2)" : "none"
+                    }}
+                    onMouseEnter={e => {
+                      if (ageFilter !== age) {
+                        e.currentTarget.style.background = "#e8e8e8";
+                        e.currentTarget.style.borderColor = "#d0d0d0";
+                      }
+                    }}
+                    onMouseLeave={e => {
+                      if (ageFilter !== age) {
+                        e.currentTarget.style.background = "#f8f8f8";
+                        e.currentTarget.style.borderColor = "transparent";
+                      }
                     }}
                   >{age}</button>
                 ))}
