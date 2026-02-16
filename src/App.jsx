@@ -2994,6 +2994,13 @@ export default function AustralianNIPSchedule() {
   const [activeSection, setActiveSection] = useState("schedule");
   const [selectedItem, setSelectedItem] = useState(null);
   const [openAgeGroups, setOpenAgeGroups] = useState(new Set()); // Set of open age groups, empty = all closed
+  
+  // When "All ages" is selected, open all life stages by default
+  useEffect(() => {
+    if (ageFilter === "All ages") {
+      setOpenAgeGroups(new Set(LIFE_STAGES.map(ls => ls.id)));
+    }
+  }, [ageFilter]);
   const [searchQuery, setSearchQuery] = useState("");
   const [quickFilters, setQuickFilters] = useState(new Set()); // Set of active quick filters
   const ageGroupRefs = useRef({});
@@ -3070,6 +3077,16 @@ export default function AustralianNIPSchedule() {
     // Otherwise it's a specific age
     return grouped.filter(([age]) => age === ageFilter);
   }, [grouped, ageFilter]);
+
+  // For "All ages" view: organize into life stage groups
+  const lifeStageGroups = useMemo(() => {
+    if (ageFilter !== "All ages") return null;
+    
+    return LIFE_STAGES.map(stage => ({
+      ...stage,
+      ageGroups: grouped.filter(([age]) => stage.ages.includes(age))
+    })).filter(stage => stage.ageGroups.length > 0); // Only include stages with vaccines
+  }, [ageFilter, grouped]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -3334,90 +3351,6 @@ export default function AustralianNIPSchedule() {
               />
             </div>
 
-            {/* Quick Filter Chips */}
-            <div style={{ marginBottom: "16px" }}>
-              <div style={{ fontSize: "12px", color: "#888", fontWeight: 600, marginBottom: "8px" }}>
-                Quick filters:
-              </div>
-              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                {[
-                  { id: "infant", label: "Infants (birth-18m)", icon: "👶" },
-                  { id: "preschool", label: "Preschool (4y)", icon: "🎨" },
-                  { id: "school", label: "School age", icon: "🎒" },
-                  { id: "pregnancy", label: "Pregnancy", icon: "🤰" },
-                  { id: "adult", label: "Adults", icon: "👤" },
-                ].map(filter => {
-                  const isActive = quickFilters.has(filter.id);
-                  return (
-                    <button
-                      key={filter.id}
-                      onClick={() => {
-                        setQuickFilters(prev => {
-                          const next = new Set(prev);
-                          if (next.has(filter.id)) next.delete(filter.id);
-                          else next.add(filter.id);
-                          return next;
-                        });
-                      }}
-                      style={{
-                        padding: "6px 12px",
-                        fontSize: "13px",
-                        fontWeight: 600,
-                        border: `2px solid ${isActive ? "#2d2b55" : "#e0e0e0"}`,
-                        borderRadius: "20px",
-                        background: isActive ? "#2d2b55" : "#fff",
-                        color: isActive ? "#fff" : "#666",
-                        cursor: "pointer",
-                        fontFamily: "inherit",
-                        transition: "all 0.2s ease",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "4px",
-                      }}
-                      onMouseEnter={e => {
-                        if (!isActive) {
-                          e.currentTarget.style.borderColor = "#2d2b55";
-                          e.currentTarget.style.color = "#2d2b55";
-                        }
-                      }}
-                      onMouseLeave={e => {
-                        if (!isActive) {
-                          e.currentTarget.style.borderColor = "#e0e0e0";
-                          e.currentTarget.style.color = "#666";
-                        }
-                      }}
-                    >
-                      <span>{filter.icon}</span>
-                      <span>{filter.label}</span>
-                    </button>
-                  );
-                })}
-                {(searchQuery || quickFilters.size > 0) && (
-                  <button
-                    onClick={() => {
-                      setSearchQuery("");
-                      setQuickFilters(new Set());
-                    }}
-                    style={{
-                      padding: "6px 12px",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      border: "1px solid #e0e0e0",
-                      borderRadius: "20px",
-                      background: "#fff",
-                      color: "#c0392b",
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                      transition: "all 0.2s ease",
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background = "#fff0f0"; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = "#fff"; }}
-                  >
-                    ✕ Clear filters
-                  </button>
-                )}
-              </div>
-            </div>
 
             {/* Filter dropdowns */}
             <div style={{ 
@@ -3678,7 +3611,18 @@ export default function AustralianNIPSchedule() {
                   gap: "8px",
                 }}>
                   <h3 style={{ fontSize: "16px", fontWeight: 700, color: "#1a1a2e", margin: 0 }}>
-                    {!ageFilter || ageFilter === "All ages" ? "Vaccines by Age Group" : `Vaccines for ${ageFilter}`}
+                    {(() => {
+                      if (!ageFilter || ageFilter === "All ages") return "Vaccines by Age Group";
+                      // Check if it's a life stage
+                      const lifeStage = LIFE_STAGES.find(ls => ls.id === ageFilter);
+                      if (lifeStage) {
+                        // Remove emoji and use friendly text
+                        const label = lifeStage.label.replace(/^[^\s]+\s/, ''); // Remove emoji
+                        return `Vaccines for ${label}`;
+                      }
+                      // It's a specific age
+                      return `Vaccines for ${ageFilter}`;
+                    })()}
                   </h3>
                   <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
                     <span style={{ fontSize: "12px", color: "#888" }}>
@@ -3715,7 +3659,101 @@ export default function AustralianNIPSchedule() {
               </div>
             )}
 
-            {displayedGroups.map(([age, items]) => {
+            {/* Render vaccines - different structure for "All ages" vs other views */}
+            {ageFilter === "All ages" && lifeStageGroups ? (
+              // All ages view: show life stages as collapsible groups
+              lifeStageGroups.map(stage => {
+                const isStageOpen = openAgeGroups.has(stage.id);
+                const toggleStage = () => {
+                  setOpenAgeGroups(prev => {
+                    const next = new Set(prev);
+                    if (next.has(stage.id)) next.delete(stage.id);
+                    else next.add(stage.id);
+                    return next;
+                  });
+                };
+                
+                return (
+                  <div key={stage.id} style={{ marginBottom: "16px" }}>
+                    {/* Life stage header - collapsible */}
+                    <button onClick={toggleStage} style={{
+                      display: "flex", alignItems: "center", gap: "10px",
+                      background: isStageOpen ? "#f8f9fa" : "#fff",
+                      border: "2px solid #e0e0e0",
+                      borderRadius: "10px",
+                      cursor: "pointer",
+                      padding: "14px 18px",
+                      marginBottom: isStageOpen ? "12px" : "0",
+                      width: "100%", textAlign: "left", fontFamily: "inherit",
+                      transition: "all 0.2s ease",
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "#f8f9fa"; e.currentTarget.style.borderColor = "#2563eb"; }}
+                    onMouseLeave={e => { 
+                      e.currentTarget.style.background = isStageOpen ? "#f8f9fa" : "#fff"; 
+                      e.currentTarget.style.borderColor = "#e0e0e0";
+                    }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 12 12" style={{
+                        flexShrink: 0,
+                        transform: isStageOpen ? "rotate(90deg)" : "rotate(0deg)",
+                        transition: "transform 0.2s ease",
+                        color: "#2563eb",
+                      }}>
+                        <polyline points="3,2 9,6 3,10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      <span style={{
+                        fontSize: "16px", fontWeight: 700, color: "#1a1a2e",
+                      }}>{stage.label}</span>
+                      <span style={{
+                        marginLeft: "auto",
+                        fontSize: "11px", fontWeight: 600,
+                        padding: "4px 12px", borderRadius: "12px",
+                        background: isStageOpen ? "#2563eb" : "#e8e8e8",
+                        color: isStageOpen ? "#fff" : "#666",
+                        transition: "all 0.2s",
+                      }}>
+                        {stage.ageGroups.reduce((sum, [, items]) => sum + items.length, 0)} vaccines
+                      </span>
+                    </button>
+                    
+                    {/* Age groups within this life stage */}
+                    {isStageOpen && (
+                      <div style={{ paddingLeft: "12px" }}>
+                        {stage.ageGroups.map(([age, items]) => (
+                          <div key={age} style={{ marginBottom: "12px" }}>
+                            <div style={{
+                              padding: "10px 16px",
+                              marginBottom: "8px",
+                              borderLeft: "3px solid #2563eb",
+                              background: "#f8f9fa",
+                            }}>
+                              <h4 style={{
+                                margin: 0,
+                                fontSize: "14px",
+                                fontWeight: 700,
+                                color: "#1a1a2e",
+                              }}>{age}</h4>
+                              <span style={{
+                                fontSize: "11px",
+                                color: "#888",
+                                fontWeight: 600,
+                              }}>{items.length} {items.length === 1 ? "vaccine" : "vaccines"}</span>
+                            </div>
+                            <div>
+                              {items.map((item, i) => (
+                                <VaccineCard key={i} item={item} onClick={setSelectedItem} selectedState={stateFilter} />
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              // Other views: existing logic
+              displayedGroups.map(([age, items]) => {
               // Check if we're viewing a life stage (showing multiple ages with headlines)
               const isLifeStageView = LIFE_STAGES.some(ls => ls.id === ageFilter);
               
@@ -3815,7 +3853,7 @@ export default function AustralianNIPSchedule() {
                   )}
                 </div>
               );
-            })}
+            }))}
             </div>
 
             {/* Pregnancy timeline - moved to bottom */}
