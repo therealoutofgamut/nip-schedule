@@ -3016,7 +3016,8 @@ export default function AustralianNIPSchedule() {
 
   // Filter groups based on age tab selection
   const displayedGroups = useMemo(() => {
-    if (!ageFilter || ageFilter === "All ages") return grouped;
+    if (!ageFilter) return []; // Show nothing when no selection
+    if (ageFilter === "All ages") return grouped;
     return grouped.filter(([age]) => age === ageFilter);
   }, [grouped, ageFilter]);
 
@@ -3514,6 +3515,22 @@ export default function AustralianNIPSchedule() {
 
             {/* Vaccines by Age Group Section */}
             <div id="by-age">
+            {!ageFilter && grouped.length > 0 && (
+              <div style={{ 
+                textAlign: "center", 
+                padding: "48px 24px",
+                color: "#888"
+              }}>
+                <div style={{ fontSize: "48px", marginBottom: "16px" }}>👆</div>
+                <p style={{ fontSize: "16px", fontWeight: 600, color: "#555", margin: "0 0 8px" }}>
+                  Select an age group above
+                </p>
+                <p style={{ fontSize: "14px", color: "#999", margin: 0 }}>
+                  Choose a specific age or "All ages" to view vaccines
+                </p>
+              </div>
+            )}
+            
             {grouped.length === 0 && (
               <p style={{ color: "#999", fontSize: "14px", padding: "32px 0", textAlign: "center" }}>No vaccines match your current filters.</p>
             )}
