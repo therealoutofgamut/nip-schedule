@@ -2958,7 +2958,7 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
 }
 
 export default function AustralianNIPSchedule() {
-  const [ageFilter, setAgeFilter] = useState("All ages");
+  const [ageFilter, setAgeFilter] = useState(""); // Start with no age selected
   const [typeFilter, setTypeFilter] = useState("all");
   const [stateFilter, setStateFilter] = useState("ALL");
   const [activeSection, setActiveSection] = useState("schedule");
@@ -2971,13 +2971,13 @@ export default function AustralianNIPSchedule() {
   const filtered = useMemo(() => {
     return SCHEDULE_DATA.filter(d => {
       // Standard filters
-      if (ageFilter !== "All ages" && d.age !== ageFilter) return false;
+      if (ageFilter && ageFilter !== "All ages" && d.age !== ageFilter) return false;
       if (typeFilter !== "all" && d.type !== typeFilter) return false;
       
-      // Search filter - improved to search word boundaries
+      // Search filter - only search vaccine name and shortName
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        const searchable = `${d.vaccine} ${d.shortName} ${d.brand} ${d.notes}`.toLowerCase();
+        const searchable = `${d.vaccine} ${d.shortName}`.toLowerCase();
         
         // Split into words and check if any word starts with the query
         const words = searchable.split(/[\s,\-\(\)\/]+/);
@@ -3016,7 +3016,7 @@ export default function AustralianNIPSchedule() {
 
   // Filter groups based on age tab selection
   const displayedGroups = useMemo(() => {
-    if (ageFilter === "All ages") return grouped;
+    if (!ageFilter || ageFilter === "All ages") return grouped;
     return grouped.filter(([age]) => age === ageFilter);
   }, [grouped, ageFilter]);
 
@@ -3458,7 +3458,7 @@ export default function AustralianNIPSchedule() {
             </div>
 
             {/* Filter status indicator */}
-            {(stateFilter !== "ALL" || ageFilter !== "All ages" || typeFilter !== "all") && (
+            {(stateFilter !== "ALL" || (ageFilter && ageFilter !== "All ages") || typeFilter !== "all") && (
               <div style={{ 
                 background: "#FFF8E7", 
                 border: "1px solid #F4D89D",
@@ -3474,7 +3474,7 @@ export default function AustralianNIPSchedule() {
                 <span style={{ fontWeight: 600 }}>ℹ️ Filters active:</span>
                 <span>
                   {stateFilter !== "ALL" && `Showing funding for ${STATES[stateFilter]} • `}
-                  {ageFilter !== "All ages" && `Age: ${ageFilter} • `}
+                  {ageFilter && ageFilter !== "All ages" && `Age: ${ageFilter} • `}
                   {typeFilter !== "all" && `Type: ${TYPES[typeFilter].label} • `}
                   Faded dots = not funded or filtered out
                 </span>
@@ -3512,13 +3512,13 @@ export default function AustralianNIPSchedule() {
                   gap: "8px",
                 }}>
                   <h3 style={{ fontSize: "16px", fontWeight: 700, color: "#1a1a2e", margin: 0 }}>
-                    {ageFilter === "All ages" ? "Vaccines by Age Group" : `Vaccines for ${ageFilter}`}
+                    {!ageFilter || ageFilter === "All ages" ? "Vaccines by Age Group" : `Vaccines for ${ageFilter}`}
                   </h3>
                   <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
                     <span style={{ fontSize: "12px", color: "#888" }}>
                       {filtered.length} {filtered.length === 1 ? "vaccine" : "vaccines"} · {displayedGroups.length} {displayedGroups.length === 1 ? "age group" : "age groups"}
                     </span>
-                    {ageFilter === "All ages" && (
+                    {(!ageFilter || ageFilter === "All ages") && (
                       <button
                         onClick={() => setSelectedItem({ 
                           vaccine: "Keyboard Shortcuts",
@@ -3551,8 +3551,8 @@ export default function AustralianNIPSchedule() {
 
             {displayedGroups.map(([age, items]) => {
               // When a specific age is selected, always show it expanded (no collapsing)
-              const isOpen = ageFilter !== "All ages" || openAgeGroups.has(age);
-              const canToggle = ageFilter === "All ages"; // Only allow toggling in "All ages" view
+              const isOpen = ageFilter && ageFilter !== "All ages" || openAgeGroups.has(age);
+              const canToggle = !ageFilter || ageFilter === "All ages"; // Only allow toggling in "All ages" view
               
               const toggle = () => {
                 if (!canToggle) return;
@@ -3616,30 +3616,9 @@ export default function AustralianNIPSchedule() {
                       transition: "all 0.2s",
                     }}>{items.length} {items.length === 1 ? "vaccine" : "vaccines"}</span>
                     </button>
-                  ) : (
-                    /* Non-toggleable header when specific age is selected */
-                    <div style={{
-                      display: "flex", alignItems: "center", gap: "10px",
-                      background: "#f8f9fa",
-                      border: "1px solid #e0e0e0",
-                      borderRadius: "8px",
-                      padding: "12px 16px",
-                      marginBottom: "8px",
-                    }}>
-                      <span style={{
-                        fontSize: "15px", fontWeight: 700, color: "#1a1a2e",
-                      }}>{age}</span>
-                      <span style={{
-                        marginLeft: "auto",
-                        fontSize: "11px", fontWeight: 600,
-                        padding: "3px 10px", borderRadius: "12px",
-                        background: "#2d2b55",
-                        color: "#fff",
-                      }}>{items.length} {items.length === 1 ? "vaccine" : "vaccines"}</span>
-                    </div>
-                  )}
+                  ) : null}
                   {isOpen && (
-                    <div style={{ paddingLeft: "8px" }}>
+                    <div style={{ paddingLeft: canToggle ? "8px" : "0" }}>
                       {items.map((item, i) => (
                         <VaccineCard key={i} item={item} onClick={setSelectedItem} selectedState={stateFilter} />
                       ))}
