@@ -3222,7 +3222,7 @@ export default function AustralianNIPSchedule() {
               <Timeline 
                 onSelect={setSelectedItem}
                 stateFilter={stateFilter}
-                ageFilter={ageFilter}
+                ageFilter="All ages"
                 typeFilter={typeFilter}
               />
             </div>
@@ -3435,13 +3435,13 @@ export default function AustralianNIPSchedule() {
                   style={{
                     padding: "9px 16px", 
                     borderRadius: "7px", 
-                    border: ageFilter === "All ages" ? "2px solid #1a1a2e" : "2px solid transparent",
-                    background: ageFilter === "All ages" ? "#1a1a2e" : "#f8f8f8",
+                    border: ageFilter === "All ages" ? "2px solid #2563eb" : "2px solid transparent",
+                    background: ageFilter === "All ages" ? "#2563eb" : "#f8f8f8",
                     color: ageFilter === "All ages" ? "#fff" : "#555",
                     fontSize: "12px", fontWeight: 700, cursor: "pointer",
                     fontFamily: "inherit", transition: "all 0.2s ease",
                     whiteSpace: "nowrap",
-                    boxShadow: ageFilter === "All ages" ? "0 2px 8px rgba(26,26,46,0.2)" : "none"
+                    boxShadow: ageFilter === "All ages" ? "0 2px 8px rgba(37,99,235,0.25)" : "none"
                   }}
                   onMouseEnter={e => {
                     if (ageFilter !== "All ages") {
@@ -3463,13 +3463,13 @@ export default function AustralianNIPSchedule() {
                     style={{
                       padding: "9px 16px", 
                       borderRadius: "7px", 
-                      border: ageFilter === age ? "2px solid #1a1a2e" : "2px solid transparent",
-                      background: ageFilter === age ? "#1a1a2e" : "#f8f8f8",
+                      border: ageFilter === age ? "2px solid #2563eb" : "2px solid transparent",
+                      background: ageFilter === age ? "#2563eb" : "#f8f8f8",
                       color: ageFilter === age ? "#fff" : "#555",
                       fontSize: "12px", fontWeight: 700, cursor: "pointer",
                       fontFamily: "inherit", transition: "all 0.2s ease",
                       whiteSpace: "nowrap",
-                      boxShadow: ageFilter === age ? "0 2px 8px rgba(26,26,46,0.2)" : "none"
+                      boxShadow: ageFilter === age ? "0 2px 8px rgba(37,99,235,0.25)" : "none"
                     }}
                     onMouseEnter={e => {
                       if (ageFilter !== age) {
