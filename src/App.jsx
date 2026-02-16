@@ -3000,8 +3000,19 @@ export default function AustralianNIPSchedule() {
 
   const filtered = useMemo(() => {
     return SCHEDULE_DATA.filter(d => {
-      // Standard filters
-      if (ageFilter && ageFilter !== "All ages" && d.age !== ageFilter) return false;
+      // Age filter - handle life stages
+      if (ageFilter && ageFilter !== "All ages") {
+        // Check if ageFilter is a life stage ID
+        const lifeStage = LIFE_STAGES.find(ls => ls.id === ageFilter);
+        if (lifeStage) {
+          // Filter to ages within this life stage
+          if (!lifeStage.ages.includes(d.age)) return false;
+        } else {
+          // It's a specific age
+          if (d.age !== ageFilter) return false;
+        }
+      }
+      
       if (typeFilter !== "all" && d.type !== typeFilter) return false;
       
       // Search filter - only search vaccine name and shortName
