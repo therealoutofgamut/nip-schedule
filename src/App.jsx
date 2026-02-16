@@ -3566,7 +3566,7 @@ export default function AustralianNIPSchedule() {
                         key={age}
                         onClick={() => {
                           setAgeFilter(age);
-                          setExpandedLifeStage(null); // Close after selection
+                          // Keep expandedLifeStage open so user can select other ages
                         }}
                         style={{
                           padding: "6px 12px",
@@ -3705,6 +3705,9 @@ export default function AustralianNIPSchedule() {
             )}
 
             {displayedGroups.map(([age, items]) => {
+              // Check if we're viewing a life stage (showing multiple ages with headlines)
+              const isLifeStageView = LIFE_STAGES.some(ls => ls.id === ageFilter);
+              
               // When a specific age is selected, always show it expanded (no collapsing)
               const isOpen = ageFilter && ageFilter !== "All ages" || openAgeGroups.has(age);
               const canToggle = !ageFilter || ageFilter === "All ages"; // Only allow toggling in "All ages" view
@@ -3771,6 +3774,26 @@ export default function AustralianNIPSchedule() {
                       transition: "all 0.2s",
                     }}>{items.length} {items.length === 1 ? "vaccine" : "vaccines"}</span>
                     </button>
+                  ) : isLifeStageView ? (
+                    /* Show age headline when viewing a life stage */
+                    <div style={{
+                      padding: "10px 16px",
+                      marginBottom: "8px",
+                      borderLeft: "4px solid #2563eb",
+                      background: "#f8f9fa",
+                    }}>
+                      <h4 style={{
+                        margin: 0,
+                        fontSize: "15px",
+                        fontWeight: 700,
+                        color: "#1a1a2e",
+                      }}>{age}</h4>
+                      <span style={{
+                        fontSize: "11px",
+                        color: "#888",
+                        fontWeight: 600,
+                      }}>{items.length} {items.length === 1 ? "vaccine" : "vaccines"}</span>
+                    </div>
                   ) : null}
                   {isOpen && (
                     <div style={{ paddingLeft: canToggle ? "8px" : "0" }}>
