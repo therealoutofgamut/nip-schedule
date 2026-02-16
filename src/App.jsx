@@ -1730,18 +1730,23 @@ export default function AustralianNIPSchedule() {
             )}
 
             {/* Show vaccines for selected age group */}
-            {ageFilter !== "All ages" && grouped.length > 0 && (
-              <div style={{ marginBottom: "28px" }}>
-                <h3 style={{
-                  fontSize: "18px", fontWeight: 700, color: "#1a1a2e",
-                  margin: "0 0 14px", padding: "0 0 10px",
-                  borderBottom: "2px solid #2d2b55"
-                }}>{ageFilter}</h3>
-                {grouped[0][1].map((item, i) => (
-                  <VaccineCard key={i} item={item} onClick={setSelectedItem} selectedState={stateFilter} />
-                ))}
-              </div>
-            )}
+            {ageFilter !== "All ages" && grouped.length > 0 && (() => {
+              const ageGroup = grouped.find(([age]) => age === ageFilter);
+              if (!ageGroup) return null;
+              const [age, items] = ageGroup;
+              return (
+                <div style={{ marginBottom: "28px" }}>
+                  <h3 style={{
+                    fontSize: "18px", fontWeight: 700, color: "#1a1a2e",
+                    margin: "0 0 14px", padding: "0 0 10px",
+                    borderBottom: "2px solid #2d2b55"
+                  }}>{age}</h3>
+                  {items.map((item, i) => (
+                    <VaccineCard key={i} item={item} onClick={setSelectedItem} selectedState={stateFilter} />
+                  ))}
+                </div>
+              );
+            })()}
 
             {/* Show all ages when "All ages" is selected */}
             {ageFilter === "All ages" && grouped.map(([age, items]) => (
