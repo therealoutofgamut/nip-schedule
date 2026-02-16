@@ -69,6 +69,35 @@ const AGE_GROUPS = [
   "≥50 years (ATSI)", "≥65 years", "≥70 years"
 ];
 
+// Life stage groupings for cleaner UI
+const LIFE_STAGES = [
+  {
+    id: "infants",
+    label: "👶 Infants (birth–12m)",
+    ages: ["Birth", "Infants (seasonal)", "6 weeks", "4 months", "6 months", "12 months"]
+  },
+  {
+    id: "toddlers",
+    label: "🧒 Toddlers (12m–4y)",
+    ages: ["12 months", "18 months", "18 months+", "6 months–5 years", "4 years"]
+  },
+  {
+    id: "school",
+    label: "🎒 School age (5–19y)",
+    ages: ["Year 7 (12–13 yrs)", "Year 10 (15–16 yrs)", "15–19 years"]
+  },
+  {
+    id: "pregnancy",
+    label: "🤰 Pregnancy",
+    ages: ["Pregnancy"]
+  },
+  {
+    id: "adults",
+    label: "👤 Adults (50+)",
+    ages: ["≥50 years (ATSI)", "≥65 years", "≥70 years"]
+  }
+];
+
 const TYPES = {
   routine: { label: "NIP Routine", color: "#0D6E3F", bg: "#E8F5EE" },
   indigenous: { label: "Aboriginal & TSI", color: "#9B4D13", bg: "#FEF0E4" },
@@ -2959,6 +2988,7 @@ function PatientSection({ stateFilter, setStateFilter, onSelectVaccine }) {
 
 export default function AustralianNIPSchedule() {
   const [ageFilter, setAgeFilter] = useState(""); // Start with no age selected
+  const [expandedLifeStage, setExpandedLifeStage] = useState(null); // Track which life stage is expanded
   const [typeFilter, setTypeFilter] = useState("all");
   const [stateFilter, setStateFilter] = useState("ALL");
   const [activeSection, setActiveSection] = useState("schedule");
@@ -3014,10 +3044,19 @@ export default function AustralianNIPSchedule() {
     });
   }, [filtered]);
 
-  // Filter groups based on age tab selection
+  // Filter groups based on age tab selection (including life stages)
   const displayedGroups = useMemo(() => {
     if (!ageFilter) return []; // Show nothing when no selection
     if (ageFilter === "All ages") return grouped;
+    
+    // Check if ageFilter is a life stage ID
+    const lifeStage = LIFE_STAGES.find(ls => ls.id === ageFilter);
+    if (lifeStage) {
+      // Show all ages within this life stage
+      return grouped.filter(([age]) => lifeStage.ages.includes(age));
+    }
+    
+    // Otherwise it's a specific age
     return grouped.filter(([age]) => age === ageFilter);
   }, [grouped, ageFilter]);
 
@@ -3421,17 +3460,23 @@ export default function AustralianNIPSchedule() {
               </div>
             </div>
 
-            {/* Age Group Tabs */}
+            {/* Life Stage Tabs */}
             <div style={{ marginBottom: "20px" }}>
               <div style={{ fontSize: "13px", color: "#888", fontWeight: 600, marginBottom: "10px" }}>
                 Select age group:
               </div>
+              
+              {/* Main life stage tabs */}
               <div style={{
                 display: "flex", gap: "8px", flexWrap: "wrap", padding: "6px",
-                background: "#fff", borderRadius: "10px", border: "2px solid #e8e8e8"
+                background: "#fff", borderRadius: "10px", border: "2px solid #e8e8e8",
+                marginBottom: expandedLifeStage ? "8px" : "0"
               }}>
                 <button
-                  onClick={() => setAgeFilter("All ages")}
+                  onClick={() => {
+                    setAgeFilter("All ages");
+                    setExpandedLifeStage(null);
+                  }}
                   style={{
                     padding: "9px 16px", 
                     borderRadius: "7px", 
@@ -3456,36 +3501,98 @@ export default function AustralianNIPSchedule() {
                     }
                   }}
                 >All ages</button>
-                {AGE_GROUPS.map(age => (
-                  <button
-                    key={age}
-                    onClick={() => setAgeFilter(age)}
-                    style={{
-                      padding: "9px 16px", 
-                      borderRadius: "7px", 
-                      border: ageFilter === age ? "2px solid #2563eb" : "2px solid transparent",
-                      background: ageFilter === age ? "#2563eb" : "#f8f8f8",
-                      color: ageFilter === age ? "#fff" : "#555",
-                      fontSize: "12px", fontWeight: 700, cursor: "pointer",
-                      fontFamily: "inherit", transition: "all 0.2s ease",
-                      whiteSpace: "nowrap",
-                      boxShadow: ageFilter === age ? "0 2px 8px rgba(37,99,235,0.25)" : "none"
-                    }}
-                    onMouseEnter={e => {
-                      if (ageFilter !== age) {
-                        e.currentTarget.style.background = "#e8e8e8";
-                        e.currentTarget.style.borderColor = "#d0d0d0";
-                      }
-                    }}
-                    onMouseLeave={e => {
-                      if (ageFilter !== age) {
-                        e.currentTarget.style.background = "#f8f8f8";
-                        e.currentTarget.style.borderColor = "transparent";
-                      }
-                    }}
-                  >{age}</button>
-                ))}
+                
+                {LIFE_STAGES.map(stage => {
+                  const isStageSelected = ageFilter === stage.id || stage.ages.includes(ageFilter);
+                  return (
+                    <button
+                      key={stage.id}
+                      onClick={() => {
+                        if (expandedLifeStage === stage.id) {
+                          // Clicking again collapses and selects the whole stage
+                          setAgeFilter(stage.id);
+                          setExpandedLifeStage(null);
+                        } else {
+                          // First click: expand to show sub-options
+                          setExpandedLifeStage(stage.id);
+                          setAgeFilter(stage.id); // Also select the stage
+                        }
+                      }}
+                      style={{
+                        padding: "9px 16px", 
+                        borderRadius: "7px", 
+                        border: isStageSelected ? "2px solid #2563eb" : "2px solid transparent",
+                        background: isStageSelected ? "#2563eb" : "#f8f8f8",
+                        color: isStageSelected ? "#fff" : "#555",
+                        fontSize: "12px", fontWeight: 700, cursor: "pointer",
+                        fontFamily: "inherit", transition: "all 0.2s ease",
+                        whiteSpace: "nowrap",
+                        boxShadow: isStageSelected ? "0 2px 8px rgba(37,99,235,0.25)" : "none"
+                      }}
+                      onMouseEnter={e => {
+                        if (!isStageSelected) {
+                          e.currentTarget.style.background = "#e8e8e8";
+                          e.currentTarget.style.borderColor = "#d0d0d0";
+                        }
+                      }}
+                      onMouseLeave={e => {
+                        if (!isStageSelected) {
+                          e.currentTarget.style.background = "#f8f8f8";
+                          e.currentTarget.style.borderColor = "transparent";
+                        }
+                      }}
+                    >
+                      {stage.label}
+                      {expandedLifeStage === stage.id && " ▾"}
+                    </button>
+                  );
+                })}
               </div>
+              
+              {/* Expanded sub-ages */}
+              {expandedLifeStage && (() => {
+                const stage = LIFE_STAGES.find(s => s.id === expandedLifeStage);
+                if (!stage) return null;
+                return (
+                  <div style={{
+                    display: "flex", gap: "6px", flexWrap: "wrap", padding: "8px 12px",
+                    background: "#f8f9fa", borderRadius: "8px", border: "1px solid #e0e0e0"
+                  }}>
+                    <span style={{ fontSize: "11px", color: "#888", fontWeight: 600, marginRight: "4px", alignSelf: "center" }}>
+                      Specific ages:
+                    </span>
+                    {stage.ages.map(age => (
+                      <button
+                        key={age}
+                        onClick={() => {
+                          setAgeFilter(age);
+                          setExpandedLifeStage(null); // Close after selection
+                        }}
+                        style={{
+                          padding: "6px 12px",
+                          borderRadius: "6px",
+                          border: ageFilter === age ? "1px solid #2563eb" : "1px solid #d0d0d0",
+                          background: ageFilter === age ? "#eff6ff" : "#fff",
+                          color: ageFilter === age ? "#2563eb" : "#666",
+                          fontSize: "11px", fontWeight: 600, cursor: "pointer",
+                          fontFamily: "inherit", transition: "all 0.15s ease",
+                          whiteSpace: "nowrap"
+                        }}
+                        onMouseEnter={e => {
+                          if (ageFilter !== age) {
+                            e.currentTarget.style.background = "#f3f4f6";
+                          }
+                        }}
+                        onMouseLeave={e => {
+                          if (ageFilter !== age) {
+                            e.currentTarget.style.background = "#fff";
+                          }
+                        }}
+                      >{age}</button>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Filter status indicator */}
@@ -3504,10 +3611,11 @@ export default function AustralianNIPSchedule() {
               }}>
                 <span style={{ fontWeight: 600 }}>ℹ️ Filters active:</span>
                 <span>
-                  {stateFilter !== "ALL" && `Showing funding for ${STATES[stateFilter]} • `}
-                  {ageFilter && ageFilter !== "All ages" && `Age: ${ageFilter} • `}
-                  {typeFilter !== "all" && `Type: ${TYPES[typeFilter].label} • `}
-                  Faded dots = not funded or filtered out
+                  {stateFilter !== "ALL" && `Showing funding for ${STATES[stateFilter]}`}
+                  {stateFilter !== "ALL" && (ageFilter && ageFilter !== "All ages" || typeFilter !== "all") && ` • `}
+                  {ageFilter && ageFilter !== "All ages" && `Age: ${ageFilter}`}
+                  {ageFilter && ageFilter !== "All ages" && typeFilter !== "all" && ` • `}
+                  {typeFilter !== "all" && `Type: ${TYPES[typeFilter].label}`}
                 </span>
               </div>
             )}
